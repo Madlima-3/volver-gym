@@ -33,7 +33,11 @@ export default async function FichaDetailPage({ params }: Props) {
     .eq("id", id)
     .single()
 
-  if (planError || !plan) notFound()
+  if (planError) {
+    console.error("[treinos/[id]] planError:", JSON.stringify(planError))
+    notFound()
+  }
+  if (!plan) notFound()
 
   // Usuário só pode ver se a ficha está atribuída a ele
   if (!isAdmin && plan.assigned_to !== user.id) redirect("/treinos")
@@ -46,21 +50,23 @@ export default async function FichaDetailPage({ params }: Props) {
   // Busca dados do usuário atribuído separadamente
   let assignedUser: { id: string; name: string | null; email: string } | null = null
   if (isAdmin && plan.assigned_to) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("users")
       .select("id, name, email")
       .eq("id", plan.assigned_to)
       .single()
+    if (error) console.error("[treinos/[id]] assignedUser error:", JSON.stringify(error))
     assignedUser = data ?? null
   }
 
   // Lista de todos os usuários para o select de atribuição
   let allUsers: { id: string; name: string | null; email: string }[] = []
   if (isAdmin) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("users")
       .select("id, name, email")
       .order("name")
+    if (error) console.error("[treinos/[id]] allUsers error:", JSON.stringify(error))
     allUsers = (data ?? []).filter((u) => u.id !== user.id)
   }
 
