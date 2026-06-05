@@ -8,32 +8,42 @@ import { Plus, Dumbbell, Users } from "lucide-react"
 
 export default async function TreinosPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/login")
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) redirect("/login")
 
   const { data: profile } = await supabase
     .from("users")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", authUser.id)
     .single()
 
   const isAdmin = profile?.role === "admin"
 
-  // Admin vê todas as fichas, usuário só vê as atribuídas a ele
-  const query = supabase
+  // Busca planos sem join a users (para evitar problema com FK hint)
+  const plansQuery = supabase
     .from("workout_plans")
-    .select(`
-      id, name, description, is_active, assigned_to, created_at,
-      exercises(count),
-      assigned_user:users!workout_plans_assigned_to_fkey(name, email)
-    `)
+    .select("id, name, description, is_active, assigned_to, created_at, exercises(count)")
     .order("created_at", { ascending: false })
 
   if (!isAdmin) {
-    query.eq("assigned_to", user.id)
+    plansQuery.eq("assigned_to", authUser.id)
   }
 
-  const { data: plans } = await query
+  const { data: plans } = await plansQuery
+
+  // Se admin, busca nomes dos usuários atribuídos em lote
+  const assignedIds = [...new Set((plans ?? []).map((p) => p.assigned_to).filter(Boolean))] as string[]
+  const userMap: Record<string, string> = {}
+
+  if (isAdmin && assignedIds.length > 0) {
+    const { data: assignedUsers } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .in("id", assignedIds)
+    assignedUsers?.forEach((u) => {
+      userMap[u.id] = u.name ?? u.email
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -70,8 +80,8 @@ export default async function TreinosPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {plans?.map((plan) => {
-          const assignedUser = plan.assigned_user as unknown as { name: string | null; email: string } | null
           const exerciseCount = (plan.exercises as unknown as { count: number }[])[0]?.count ?? 0
+          const assignedName = plan.assigned_to ? userMap[plan.assigned_to] : null
 
           return (
             <Link key={plan.id} href={`/treinos/${plan.id}`}>
@@ -93,13 +103,13 @@ export default async function TreinosPage() {
                       <Dumbbell className="h-3.5 w-3.5" />
                       {exerciseCount} exercício{exerciseCount !== 1 ? "s" : ""}
                     </span>
-                    {isAdmin && assignedUser && (
+                    {isAdmin && assignedName && (
                       <span className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5" />
-                        {assignedUser.name ?? assignedUser.email}
+                        {assignedName}
                       </span>
                     )}
-                    {isAdmin && !assignedUser && (
+                    {isAdmin && !assignedName && (
                       <span className="text-muted-foreground/60">Sem atribuição</span>
                     )}
                   </div>

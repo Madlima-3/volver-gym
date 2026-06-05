@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AddExerciseForm } from "@/components/workout/AddExerciseForm"
 import { DeleteExerciseButton } from "@/components/workout/DeleteExerciseButton"
@@ -27,17 +26,14 @@ export default async function FichaDetailPage({ params }: Props) {
 
   const isAdmin = profile?.role === "admin"
 
-  const { data: plan } = await supabase
+  // Query sem join a users (evita problema com nome de FK)
+  const { data: plan, error: planError } = await supabase
     .from("workout_plans")
-    .select(`
-      *,
-      exercises(id, name, sets, reps, suggested_weight, notes, order_index),
-      assigned_user:users!workout_plans_assigned_to_fkey(id, name, email)
-    `)
+    .select("*, exercises(id, name, sets, reps, suggested_weight, notes, order_index)")
     .eq("id", id)
     .single()
 
-  if (!plan) notFound()
+  if (planError || !plan) notFound()
 
   // Usuário só pode ver se a ficha está atribuída a ele
   if (!isAdmin && plan.assigned_to !== user.id) redirect("/treinos")
@@ -45,19 +41,27 @@ export default async function FichaDetailPage({ params }: Props) {
   const exercises = (plan.exercises as {
     id: string; name: string; sets: number | null; reps: string | null;
     suggested_weight: number | null; notes: string | null; order_index: number
-  }[]).sort((a, b) => a.order_index - b.order_index)
+  }[] ?? []).sort((a, b) => a.order_index - b.order_index)
 
-  const assignedUser = plan.assigned_user as { id: string; name: string | null; email: string } | null
+  // Busca dados do usuário atribuído separadamente
+  let assignedUser: { id: string; name: string | null; email: string } | null = null
+  if (isAdmin && plan.assigned_to) {
+    const { data } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .eq("id", plan.assigned_to)
+      .single()
+    assignedUser = data ?? null
+  }
 
-  // Lista de usuários para o select de atribuição (só admin precisa)
+  // Lista de todos os usuários para o select de atribuição
   let allUsers: { id: string; name: string | null; email: string }[] = []
   if (isAdmin) {
     const { data } = await supabase
       .from("users")
       .select("id, name, email")
-      .eq("role", "user")
       .order("name")
-    allUsers = data ?? []
+    allUsers = (data ?? []).filter((u) => u.id !== user.id)
   }
 
   return (
@@ -111,30 +115,25 @@ export default async function FichaDetailPage({ params }: Props) {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Exercícios */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
-              Exercícios{" "}
-              <span className="text-muted-foreground font-normal text-sm">
-                ({exercises.length})
-              </span>
-            </h2>
-          </div>
+          <h2 className="font-semibold">
+            Exercícios{" "}
+            <span className="text-muted-foreground font-normal text-sm">
+              ({exercises.length})
+            </span>
+          </h2>
 
           {exercises.length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
               <Dumbbell className="h-7 w-7 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
-                Nenhum exercício ainda. {isAdmin && "Adicione o primeiro abaixo."}
+                Nenhum exercício ainda.{isAdmin && " Adicione o primeiro abaixo."}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
             {exercises.map((ex, idx) => (
-              <div
-                key={ex.id}
-                className="flex items-start gap-3 rounded-lg border bg-card p-4"
-              >
+              <div key={ex.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
                   {idx + 1}
                 </span>
@@ -147,9 +146,7 @@ export default async function FichaDetailPage({ params }: Props) {
                       </span>
                     )}
                     {ex.reps && (
-                      <span className="text-xs text-muted-foreground">
-                        {ex.reps} rep{ex.reps !== "1" ? "s" : ""}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{ex.reps} reps</span>
                     )}
                     {ex.suggested_weight && (
                       <span className="text-xs text-muted-foreground">
