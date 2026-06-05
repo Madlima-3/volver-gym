@@ -80,14 +80,32 @@ export default async function FichaDetailPage({ params }: Props) {
             <p className="text-muted-foreground mt-1 text-sm">{plan.description}</p>
           )}
         </div>
-        {isAdmin && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/treinos/${id}/editar`}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Editar
-            </Link>
-          </Button>
-        )}
+        <div className="flex gap-2 shrink-0">
+          {!isAdmin && (
+            <Button size="sm" asChild>
+              <Link href={`/treinos/${id}/executar`}>
+                <Dumbbell className="h-4 w-4 mr-1" />
+                Iniciar treino
+              </Link>
+            </Button>
+          )}
+          {isAdmin && (
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/treinos/${id}/executar`}>
+                  <Dumbbell className="h-4 w-4 mr-1" />
+                  Executar
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/treinos/${id}/editar`}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Editar
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
