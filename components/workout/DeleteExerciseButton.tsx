@@ -1,22 +1,19 @@
 "use client"
 
 import { useTransition } from "react"
-import { deleteExercise } from "@/lib/actions/exercises"
 import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 
-export function DeleteExerciseButton({
-  exerciseId,
-  workoutPlanId,
-}: {
-  exerciseId: string
-  workoutPlanId: string
-}) {
+type Props = {
+  onDelete: () => Promise<void>
+}
+
+export function DeleteExerciseButton({ onDelete }: Props) {
   const [isPending, startTransition] = useTransition()
 
   function handleDelete() {
     if (!confirm("Remover este exercício?")) return
-    startTransition(() => deleteExercise(exerciseId, workoutPlanId))
+    startTransition(() => onDelete())
   }
 
   return (

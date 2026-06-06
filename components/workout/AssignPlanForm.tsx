@@ -1,29 +1,18 @@
 "use client"
 
-import { useTransition } from "react"
-import { assignWorkoutPlan } from "@/lib/actions/workout-plans"
+import { useTransition, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
 
 type User = { id: string; name: string | null; email: string }
 
-export function AssignPlanForm({
-  planId,
-  users,
-  currentAssignedTo,
-}: {
-  planId: string
+type Props = {
   users: User[]
   currentAssignedTo: string | null
-}) {
+  onAssign: (formData: FormData) => Promise<void>
+}
+
+export function AssignPlanForm({ users, currentAssignedTo, onAssign }: Props) {
   const [selected, setSelected] = useState(currentAssignedTo ?? "")
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -33,7 +22,7 @@ export function AssignPlanForm({
     const formData = new FormData()
     formData.set("assigned_to", selected)
     startTransition(async () => {
-      await assignWorkoutPlan(planId, formData)
+      await onAssign(formData)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     })
@@ -42,20 +31,20 @@ export function AssignPlanForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-2">
-        <Label>Atribuir a</Label>
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione um usuário..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Nenhum (sem atribuição)</SelectItem>
-            {users.map((u) => (
-              <SelectItem key={u.id} value={u.id}>
-                {u.name ?? u.email}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label htmlFor="assign-select">Atribuir a</Label>
+        <select
+          id="assign-select"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <option value="">Nenhum (sem atribuição)</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name ?? u.email}
+            </option>
+          ))}
+        </select>
       </div>
       <Button type="submit" size="sm" disabled={isPending} className="w-full">
         {saved ? "Salvo!" : isPending ? "Salvando..." : "Salvar atribuição"}

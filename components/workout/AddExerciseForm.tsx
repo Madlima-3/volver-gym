@@ -1,20 +1,23 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { addExercise } from "@/lib/actions/exercises"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, X } from "lucide-react"
 
-export function AddExerciseForm({ workoutPlanId }: { workoutPlanId: string }) {
+type Props = {
+  action: (formData: FormData) => Promise<void>
+}
+
+export function AddExerciseForm({ action }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      await addExercise(workoutPlanId, formData)
+      await action(formData)
       setOpen(false)
     })
   }
@@ -32,11 +35,7 @@ export function AddExerciseForm({ workoutPlanId }: { workoutPlanId: string }) {
     <form action={handleSubmit} className="rounded-lg border bg-card p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Novo exercício</h3>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-muted-foreground hover:text-foreground"
-        >
+        <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -63,12 +62,7 @@ export function AddExerciseForm({ workoutPlanId }: { workoutPlanId: string }) {
 
       <div className="space-y-2">
         <Label htmlFor="ex-notes">Observações</Label>
-        <Textarea
-          id="ex-notes"
-          name="notes"
-          placeholder="Técnica, variações, etc."
-          className="min-h-[60px]"
-        />
+        <Textarea id="ex-notes" name="notes" placeholder="Técnica, variações, etc." className="min-h-[60px]" />
       </div>
 
       <div className="flex justify-end gap-2">

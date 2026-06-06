@@ -8,6 +8,8 @@ import { AddExerciseForm } from "@/components/workout/AddExerciseForm"
 import { DeleteExerciseButton } from "@/components/workout/DeleteExerciseButton"
 import { AssignPlanForm } from "@/components/workout/AssignPlanForm"
 import { DeletePlanButton } from "@/components/workout/DeletePlanButton"
+import { addExercise, deleteExercise } from "@/lib/actions/exercises"
+import { assignWorkoutPlan, deleteWorkoutPlan } from "@/lib/actions/workout-plans"
 import { ArrowLeft, Pencil, Dumbbell } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
@@ -26,7 +28,6 @@ export default async function FichaDetailPage({ params }: Props) {
 
   const isAdmin = profile?.role === "admin"
 
-  // Query sem join a users (evita problema com nome de FK)
   const { data: plan, error: planError } = await supabase
     .from("workout_plans")
     .select("*, exercises(id, name, sets, reps, suggested_weight, notes, order_index)")
@@ -39,7 +40,6 @@ export default async function FichaDetailPage({ params }: Props) {
   }
   if (!plan) notFound()
 
-  // Usuário só pode ver se a ficha está atribuída a ele
   if (!isAdmin && plan.assigned_to !== user.id) redirect("/treinos")
 
   const exercises = (plan.exercises as {
@@ -47,37 +47,33 @@ export default async function FichaDetailPage({ params }: Props) {
     suggested_weight: number | null; notes: string | null; order_index: number
   }[] ?? []).sort((a, b) => a.order_index - b.order_index)
 
-  // Busca dados do usuário atribuído separadamente
   let assignedUser: { id: string; name: string | null; email: string } | null = null
   if (isAdmin && plan.assigned_to) {
     const { data, error } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .eq("id", plan.assigned_to)
-      .single()
+      .from("users").select("id, name, email").eq("id", plan.assigned_to).single()
     if (error) console.error("[treinos/[id]] assignedUser error:", JSON.stringify(error))
     assignedUser = data ?? null
   }
 
-  // Lista de todos os usuários para o select de atribuição
   let allUsers: { id: string; name: string | null; email: string }[] = []
   if (isAdmin) {
     const { data, error } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .order("name")
+      .from("users").select("id, name, email").order("name")
     if (error) console.error("[treinos/[id]] allUsers error:", JSON.stringify(error))
     allUsers = (data ?? []).filter((u) => u.id !== user.id)
   }
+
+  // Bind server actions no Server Component — nunca importar diretamente em Client Components
+  const addExerciseAction = addExercise.bind(null, id)
+  const assignAction = assignWorkoutPlan.bind(null, id)
+  const deletePlanAction = deleteWorkoutPlan.bind(null, id)
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3">
         <Button variant="ghost" size="icon" asChild className="mt-0.5 shrink-0">
-          <Link href="/treinos">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <Link href="/treinos"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -94,8 +90,7 @@ export default async function FichaDetailPage({ params }: Props) {
           {!isAdmin && (
             <Button size="sm" asChild>
               <Link href={`/treinos/${id}/executar`}>
-                <Dumbbell className="h-4 w-4 mr-1" />
-                Iniciar treino
+                <Dumbbell className="h-4 w-4 mr-1" />Iniciar treino
               </Link>
             </Button>
           )}
@@ -103,14 +98,12 @@ export default async function FichaDetailPage({ params }: Props) {
             <>
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/treinos/${id}/executar`}>
-                  <Dumbbell className="h-4 w-4 mr-1" />
-                  Executar
+                  <Dumbbell className="h-4 w-4 mr-1" />Executar
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/treinos/${id}/editar`}>
-                  <Pencil className="h-4 w-4 mr-1" />
-                  Editar
+                  <Pencil className="h-4 w-4 mr-1" />Editar
                 </Link>
               </Button>
             </>
@@ -123,9 +116,7 @@ export default async function FichaDetailPage({ params }: Props) {
         <div className="lg:col-span-2 space-y-4">
           <h2 className="font-semibold">
             Exercícios{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({exercises.length})
-            </span>
+            <span className="text-muted-foreground font-normal text-sm">({exercises.length})</span>
           </h2>
 
           {exercises.length === 0 && (
@@ -138,40 +129,39 @@ export default async function FichaDetailPage({ params }: Props) {
           )}
 
           <div className="space-y-2">
-            {exercises.map((ex, idx) => (
-              <div key={ex.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                  {idx + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{ex.name}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                    {ex.sets && (
-                      <span className="text-xs text-muted-foreground">
-                        {ex.sets} série{ex.sets !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {ex.reps && (
-                      <span className="text-xs text-muted-foreground">{ex.reps} reps</span>
-                    )}
-                    {ex.suggested_weight && (
-                      <span className="text-xs text-muted-foreground">
-                        {ex.suggested_weight} kg
-                      </span>
+            {exercises.map((ex, idx) => {
+              const deleteExerciseAction = deleteExercise.bind(null, ex.id, id)
+              return (
+                <div key={ex.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{ex.name}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                      {ex.sets && (
+                        <span className="text-xs text-muted-foreground">
+                          {ex.sets} série{ex.sets !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {ex.reps && (
+                        <span className="text-xs text-muted-foreground">{ex.reps} reps</span>
+                      )}
+                      {ex.suggested_weight && (
+                        <span className="text-xs text-muted-foreground">{ex.suggested_weight} kg</span>
+                      )}
+                    </div>
+                    {ex.notes && (
+                      <p className="text-xs text-muted-foreground mt-1 italic">{ex.notes}</p>
                     )}
                   </div>
-                  {ex.notes && (
-                    <p className="text-xs text-muted-foreground mt-1 italic">{ex.notes}</p>
-                  )}
+                  {isAdmin && <DeleteExerciseButton onDelete={deleteExerciseAction} />}
                 </div>
-                {isAdmin && (
-                  <DeleteExerciseButton exerciseId={ex.id} workoutPlanId={id} />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
-          {isAdmin && <AddExerciseForm workoutPlanId={id} />}
+          {isAdmin && <AddExerciseForm action={addExerciseAction} />}
         </div>
 
         {/* Painel lateral — só admin */}
@@ -191,9 +181,9 @@ export default async function FichaDetailPage({ params }: Props) {
                   </p>
                 )}
                 <AssignPlanForm
-                  planId={id}
                   users={allUsers}
                   currentAssignedTo={plan.assigned_to ?? null}
+                  onAssign={assignAction}
                 />
               </CardContent>
             </Card>
@@ -203,7 +193,7 @@ export default async function FichaDetailPage({ params }: Props) {
                 <CardTitle className="text-sm text-destructive">Zona de perigo</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <DeletePlanButton planId={id} />
+                <DeletePlanButton onDelete={deletePlanAction} />
               </CardContent>
             </Card>
           </div>
