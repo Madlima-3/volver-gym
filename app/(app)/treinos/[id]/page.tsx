@@ -3,14 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AddExerciseForm } from "@/components/workout/AddExerciseForm"
-import { DeleteExerciseButton } from "@/components/workout/DeleteExerciseButton"
-import { AssignPlanForm } from "@/components/workout/AssignPlanForm"
-import { DeletePlanButton } from "@/components/workout/DeletePlanButton"
-import { addExercise, deleteExercise } from "@/lib/actions/exercises"
-import { assignWorkoutPlan, deleteWorkoutPlan } from "@/lib/actions/workout-plans"
-import { ArrowLeft, Pencil, Dumbbell } from "lucide-react"
+import { ArrowLeft, Dumbbell } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -21,16 +14,13 @@ export default async function FichaDetailPage({ params }: Props) {
   if (!user) redirect("/login")
 
   const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single()
+    .from("users").select("role").eq("id", user.id).single()
 
   const isAdmin = profile?.role === "admin"
 
   const { data: plan, error: planError } = await supabase
     .from("workout_plans")
-    .select("*, exercises(id, name, sets, reps, suggested_weight, notes, order_index)")
+    .select("id, name, description, is_active, assigned_to, exercises(id, name, sets, reps, suggested_weight, notes, order_index)")
     .eq("id", id)
     .single()
 
@@ -47,30 +37,8 @@ export default async function FichaDetailPage({ params }: Props) {
     suggested_weight: number | null; notes: string | null; order_index: number
   }[] ?? []).sort((a, b) => a.order_index - b.order_index)
 
-  let assignedUser: { id: string; name: string | null; email: string } | null = null
-  if (isAdmin && plan.assigned_to) {
-    const { data, error } = await supabase
-      .from("users").select("id, name, email").eq("id", plan.assigned_to).single()
-    if (error) console.error("[treinos/[id]] assignedUser error:", JSON.stringify(error))
-    assignedUser = data ?? null
-  }
-
-  let allUsers: { id: string; name: string | null; email: string }[] = []
-  if (isAdmin) {
-    const { data, error } = await supabase
-      .from("users").select("id, name, email").order("name")
-    if (error) console.error("[treinos/[id]] allUsers error:", JSON.stringify(error))
-    allUsers = (data ?? []).filter((u) => u.id !== user.id)
-  }
-
-  // Bind server actions no Server Component — nunca importar diretamente em Client Components
-  const addExerciseAction = addExercise.bind(null, id)
-  const assignAction = assignWorkoutPlan.bind(null, id)
-  const deletePlanAction = deleteWorkoutPlan.bind(null, id)
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start gap-3">
         <Button variant="ghost" size="icon" asChild className="mt-0.5 shrink-0">
           <Link href="/treinos"><ArrowLeft className="h-4 w-4" /></Link>
@@ -86,116 +54,58 @@ export default async function FichaDetailPage({ params }: Props) {
             <p className="text-muted-foreground mt-1 text-sm">{plan.description}</p>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
-          {!isAdmin && (
-            <Button size="sm" asChild>
-              <Link href={`/treinos/${id}/executar`}>
-                <Dumbbell className="h-4 w-4 mr-1" />Iniciar treino
-              </Link>
-            </Button>
-          )}
-          {isAdmin && (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/treinos/${id}/executar`}>
-                  <Dumbbell className="h-4 w-4 mr-1" />Executar
-                </Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/treinos/${id}/editar`}>
-                  <Pencil className="h-4 w-4 mr-1" />Editar
-                </Link>
-              </Button>
-            </>
-          )}
-        </div>
+        <Button size="sm" asChild>
+          <Link href={`/treinos/${id}/executar`}>
+            <Dumbbell className="h-4 w-4 mr-1" />
+            {isAdmin ? "Executar" : "Iniciar treino"}
+          </Link>
+        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Exercícios */}
-        <div className="lg:col-span-2 space-y-4">
-          <h2 className="font-semibold">
-            Exercícios{" "}
-            <span className="text-muted-foreground font-normal text-sm">({exercises.length})</span>
-          </h2>
+      <div className="space-y-4">
+        <h2 className="font-semibold">
+          Exercícios{" "}
+          <span className="text-muted-foreground font-normal text-sm">({exercises.length})</span>
+        </h2>
 
-          {exercises.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
-              <Dumbbell className="h-7 w-7 text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Nenhum exercício ainda.{isAdmin && " Adicione o primeiro abaixo."}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {exercises.map((ex, idx) => {
-              const deleteExerciseAction = deleteExercise.bind(null, ex.id, id)
-              return (
-                <div key={ex.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                    {idx + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{ex.name}</p>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                      {ex.sets && (
-                        <span className="text-xs text-muted-foreground">
-                          {ex.sets} série{ex.sets !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {ex.reps && (
-                        <span className="text-xs text-muted-foreground">{ex.reps} reps</span>
-                      )}
-                      {ex.suggested_weight && (
-                        <span className="text-xs text-muted-foreground">{ex.suggested_weight} kg</span>
-                      )}
-                    </div>
-                    {ex.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 italic">{ex.notes}</p>
-                    )}
-                  </div>
-                  {isAdmin && <DeleteExerciseButton onDelete={deleteExerciseAction} />}
-                </div>
-              )
-            })}
+        {exercises.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center">
+            <Dumbbell className="h-7 w-7 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhum exercício ainda.</p>
           </div>
+        ) : (
+          <div className="space-y-2">
+            {exercises.map((ex, idx) => (
+              <div key={ex.id} className="flex items-start gap-3 rounded-lg border bg-card p-4">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{ex.name}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                    {ex.sets && <span className="text-xs text-muted-foreground">{ex.sets} séries</span>}
+                    {ex.reps && <span className="text-xs text-muted-foreground">{ex.reps} reps</span>}
+                    {ex.suggested_weight && <span className="text-xs text-muted-foreground">{ex.suggested_weight} kg</span>}
+                  </div>
+                  {ex.notes && <p className="text-xs text-muted-foreground mt-1 italic">{ex.notes}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-          {isAdmin && <AddExerciseForm action={addExerciseAction} />}
-        </div>
-
-        {/* Painel lateral — só admin */}
+        {/* Links de ação para admin (sem client components) */}
         {isAdmin && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Atribuição</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {assignedUser && (
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Atribuída a:{" "}
-                    <span className="font-medium text-foreground">
-                      {assignedUser.name ?? assignedUser.email}
-                    </span>
-                  </p>
-                )}
-                <AssignPlanForm
-                  users={allUsers}
-                  currentAssignedTo={plan.assigned_to ?? null}
-                  onAssign={assignAction}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="border-destructive/20">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-destructive">Zona de perigo</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <DeletePlanButton onDelete={deletePlanAction} />
-              </CardContent>
-            </Card>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/treinos/${id}/editar`}>Editar ficha</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/treinos/${id}/exercicios/novo`}>+ Exercício</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/treinos/${id}/atribuir`}>Atribuir usuário</Link>
+            </Button>
           </div>
         )}
       </div>
