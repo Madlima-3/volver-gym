@@ -1,11 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { inviteUser } from "@/lib/actions/users"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { GymCard } from "@/components/ui/GymCard"
+import { InviteUserForm } from "@/components/admin/InviteUserForm"
 import { ArrowLeft, Mail } from "lucide-react"
 
 export default async function NovoUsuarioPage() {
@@ -24,7 +22,7 @@ export default async function NovoUsuarioPage() {
   return (
     <div className="max-w-md space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-foreground">
           <Link href="/admin/usuarios">
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -35,43 +33,16 @@ export default async function NovoUsuarioPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Dados do novo membro</CardTitle>
-          </div>
-          <CardDescription>
-            O usuário vai receber um email com o link para criar a senha e acessar o app.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={inviteUser} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" name="name" placeholder="Nome completo" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="nome@email.com"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" asChild>
-                <Link href="/admin/usuarios">Cancelar</Link>
-              </Button>
-              <Button type="submit">Enviar convite</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <GymCard elevated className="p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold">Dados do novo membro</h2>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          O usuário vai receber um email com o link para criar a senha e acessar o app.
+        </p>
+        <InviteUserForm />
+      </GymCard>
 
       <p className="text-xs text-muted-foreground text-center">
         O convite expira em 24 horas. Você pode reenviar se necessário.
