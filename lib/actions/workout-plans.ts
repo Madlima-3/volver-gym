@@ -97,3 +97,46 @@ export async function togglePlanActive(id: string, isActive: boolean) {
   revalidatePath(`/treinos/${id}`)
   revalidatePath("/treinos")
 }
+
+export async function duplicateWorkoutPlan(id: string) {
+  const { supabase, user } = await requireAdmin()
+
+  const { data: plan, error: planError } = await supabase
+    .from("workout_plans")
+    .select("name, description")
+    .eq("id", id)
+    .single()
+
+  if (planError || !plan) throw new Error("Ficha não encontrada.")
+
+  const { data: newPlan, error: insertError } = await supabase
+    .from("workout_plans")
+    .insert({
+      name: `${plan.name} (Cópia)`,
+      description: plan.description,
+      created_by: user.id,
+      assigned_to: null,
+      is_active: true,
+    })
+    .select("id")
+    .single()
+
+  if (insertError || !newPlan) throw new Error(insertError?.message ?? "Erro ao duplicar ficha.")
+
+  const { data: exercises } = await supabase
+    .from("exercises")
+    .select("name, sets, reps, suggested_weight, notes, order_index, muscle_group")
+    .eq("workout_plan_id", id)
+    .order("order_index")
+
+  if (exercises && exercises.length > 0) {
+    const { error: exError } = await supabase
+      .from("exercises")
+      .insert(exercises.map((ex) => ({ ...ex, workout_plan_id: newPlan.id })))
+
+    if (exError) throw new Error(exError.message)
+  }
+
+  revalidatePath("/treinos")
+  redirect(`/treinos/${newPlan.id}`)
+}

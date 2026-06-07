@@ -8,8 +8,9 @@ import { AddExerciseForm } from "@/components/workout/AddExerciseForm"
 import { DeleteExerciseButton } from "@/components/workout/DeleteExerciseButton"
 import { AssignPlanForm } from "@/components/workout/AssignPlanForm"
 import { DeletePlanButton } from "@/components/workout/DeletePlanButton"
+import { DuplicatePlanButton } from "@/components/workout/DuplicatePlanButton"
 import { addExercise, deleteExercise } from "@/lib/actions/exercises"
-import { assignWorkoutPlan, deleteWorkoutPlan } from "@/lib/actions/workout-plans"
+import { assignWorkoutPlan, deleteWorkoutPlan, duplicateWorkoutPlan } from "@/lib/actions/workout-plans"
 import { ArrowLeft, Dumbbell, Play } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
@@ -54,6 +55,7 @@ export default async function FichaDetailPage({ params }: Props) {
 
   const addExerciseAction = addExercise.bind(null, id)
   const deletePlanAction = deleteWorkoutPlan.bind(null, id)
+  const duplicateAction = duplicateWorkoutPlan.bind(null, id)
   const assignAction = assignWorkoutPlan.bind(null, id)
 
   let allUsers: { id: string; name: string | null; email: string }[] = []
@@ -169,6 +171,13 @@ export default async function FichaDetailPage({ params }: Props) {
                 currentAssignedTo={plan.assigned_to ?? null}
                 onAssign={assignAction}
               />
+            </GymCard>
+
+            <GymCard elevated className="p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                Ações
+              </h3>
+              <DuplicatePlanButton onDuplicate={duplicateAction} />
             </GymCard>
 
             <GymCard className="p-4 border-destructive/20">
