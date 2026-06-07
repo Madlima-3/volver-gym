@@ -32,21 +32,21 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  const isAuthRoute =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/invite") ||
-    pathname.startsWith("/convite") ||
-    pathname.startsWith("/auth/confirm")
+  // Rotas que exigem redirect para /dashboard quando já autenticado
+  const isLoginRoute = pathname.startsWith("/login") || pathname.startsWith("/invite")
+
+  // Rotas públicas (acessíveis sem sessão, mas sem redirect mesmo com sessão)
+  const isPublicRoute = isLoginRoute || pathname.startsWith("/convite") || pathname.startsWith("/auth/confirm")
 
   // Sem sessão tentando acessar rota protegida → vai para login
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     return NextResponse.redirect(url)
   }
 
   // Com sessão tentando acessar login → vai para dashboard
-  if (user && isAuthRoute) {
+  if (user && isLoginRoute) {
     const url = request.nextUrl.clone()
     url.pathname = "/dashboard"
     return NextResponse.redirect(url)
