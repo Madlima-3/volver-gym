@@ -35,8 +35,11 @@ export async function inviteUser(
 
   const adminClient = createAdminClient()
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://volver-gym.vercel.app"
+
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: name ? { name } : {},
+    redirectTo: `${siteUrl}/auth/confirm`,
   })
 
   if (error) return { error: error.message }
