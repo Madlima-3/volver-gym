@@ -2,9 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, ClipboardList, UserPlus } from "lucide-react"
+import { GymCard } from "@/components/ui/GymCard"
+import { Users, ClipboardList, UserPlus, ChevronRight } from "lucide-react"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -32,62 +32,52 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Painel Admin</h1>
-        <p className="text-muted-foreground mt-1">Visão geral do app</p>
+        <p className="text-muted-foreground mt-1 text-sm">Visão geral do app</p>
       </div>
 
-      {/* Métricas */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Usuários</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalUsers}</p>
-            <p className="text-xs text-muted-foreground mt-1">membros ativos</p>
-          </CardContent>
-        </Card>
+      {/* Stat cards */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <GymCard highlight className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Usuários</p>
+          <p className="text-3xl font-bold text-foreground">{totalUsers}</p>
+          <p className="text-xs text-muted-foreground mt-1">membros ativos</p>
+        </GymCard>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Fichas criadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalPlans}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {unassignedPlans > 0 ? `${unassignedPlans} sem atribuição` : "todas atribuídas"}
-            </p>
-          </CardContent>
-        </Card>
+        <GymCard className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Fichas</p>
+          <p className="text-3xl font-bold text-foreground">{totalPlans}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {unassignedPlans > 0 ? `${unassignedPlans} sem atribuição` : "todas atribuídas"}
+          </p>
+        </GymCard>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ações rápidas</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <Button size="sm" variant="outline" asChild>
+        <GymCard elevated className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Ações rápidas</p>
+          <div className="flex flex-col gap-2">
+            <Button size="sm" variant="outline" asChild className="justify-start">
               <Link href="/admin/usuarios/novo">
-                <UserPlus className="h-4 w-4 mr-1" />
+                <UserPlus className="h-4 w-4 mr-2" />
                 Convidar usuário
               </Link>
             </Button>
-            <Button size="sm" variant="outline" asChild>
+            <Button size="sm" variant="outline" asChild className="justify-start">
               <Link href="/treinos/nova">
-                <ClipboardList className="h-4 w-4 mr-1" />
+                <ClipboardList className="h-4 w-4 mr-2" />
                 Nova ficha
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </GymCard>
       </div>
 
-      {/* Lista de usuários resumida */}
+      {/* Users list */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <Users className="h-3.5 w-3.5" />
             Usuários
           </h2>
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground text-xs">
             <Link href="/admin/usuarios">Ver todos</Link>
           </Button>
         </div>
@@ -96,30 +86,42 @@ export default async function AdminPage() {
           <p className="text-sm text-muted-foreground">Nenhum usuário ainda.</p>
         )}
 
-        <div className="rounded-lg border divide-y">
+        <GymCard className="overflow-hidden divide-y divide-border">
           {users?.map((u) => {
             const assignedPlans = plans?.filter((p) => p.assigned_to === u.id) ?? []
             return (
-              <div key={u.id} className="flex items-center justify-between p-3">
-                <div>
-                  <p className="text-sm font-medium">{u.name ?? u.email}</p>
-                  <p className="text-xs text-muted-foreground">{u.email}</p>
+              <Link key={u.id} href={`/admin/usuarios/${u.id}`}>
+                <div className="flex items-center justify-between px-4 py-3 hover:bg-secondary transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <span className="text-xs font-bold text-primary">
+                        {(u.name ?? u.email).charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{u.name ?? u.email}</p>
+                      {u.name && (
+                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <span className="text-xs text-muted-foreground">
+                      {assignedPlans.length} ficha{assignedPlans.length !== 1 ? "s" : ""}
+                    </span>
+                    <Badge
+                      variant={u.role === "admin" ? "default" : "secondary"}
+                      className={`text-[10px] ${u.role === "admin" ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/20" : ""}`}
+                    >
+                      {u.role}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {assignedPlans.length} ficha{assignedPlans.length !== 1 ? "s" : ""}
-                  </span>
-                  <Badge variant={u.role === "admin" ? "default" : "secondary"} className="text-xs">
-                    {u.role}
-                  </Badge>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/admin/usuarios/${u.id}`}>Ver</Link>
-                  </Button>
-                </div>
-              </div>
+              </Link>
             )
           })}
-        </div>
+        </GymCard>
       </div>
     </div>
   )
