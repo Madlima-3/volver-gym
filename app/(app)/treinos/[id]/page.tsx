@@ -11,7 +11,7 @@ import { DeletePlanButton } from "@/components/workout/DeletePlanButton"
 import { DuplicatePlanButton } from "@/components/workout/DuplicatePlanButton"
 import { addExercise, deleteExercise } from "@/lib/actions/exercises"
 import { assignWorkoutPlan, deleteWorkoutPlan, duplicateWorkoutPlan } from "@/lib/actions/workout-plans"
-import { ArrowLeft, Dumbbell, Play } from "lucide-react"
+import { ArrowLeft, Dumbbell, Play, Pencil } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -177,7 +177,15 @@ export default async function FichaDetailPage({ params }: Props) {
               <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
                 Ações
               </h3>
-              <DuplicatePlanButton onDuplicate={duplicateAction} />
+              <div className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <Link href={`/treinos/${id}/editar`}>
+                    <Pencil className="h-4 w-4 mr-1.5" />
+                    Editar ficha
+                  </Link>
+                </Button>
+                <DuplicatePlanButton onDuplicate={duplicateAction} />
+              </div>
             </GymCard>
 
             <GymCard className="p-4 border-destructive/20">
