@@ -3,8 +3,8 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Dumbbell, Users } from "lucide-react"
+import { GymCard } from "@/components/ui/GymCard"
+import { Plus, Dumbbell, Users, ChevronRight } from "lucide-react"
 
 export default async function TreinosPage() {
   const supabase = await createClient()
@@ -19,7 +19,6 @@ export default async function TreinosPage() {
 
   const isAdmin = profile?.role === "admin"
 
-  // Busca planos sem join a users (para evitar problema com FK hint)
   const plansQuery = supabase
     .from("workout_plans")
     .select("id, name, description, is_active, assigned_to, created_at, exercises(count)")
@@ -31,7 +30,6 @@ export default async function TreinosPage() {
 
   const { data: plans } = await plansQuery
 
-  // Se admin, busca nomes dos usuários atribuídos em lote
   const assignedIds = [...new Set((plans ?? []).map((p) => p.assigned_to).filter(Boolean))] as string[]
   const userMap: Record<string, string> = {}
 
@@ -40,9 +38,7 @@ export default async function TreinosPage() {
       .from("users")
       .select("id, name, email")
       .in("id", assignedIds)
-    assignedUsers?.forEach((u) => {
-      userMap[u.id] = u.name ?? u.email
-    })
+    assignedUsers?.forEach((u) => { userMap[u.id] = u.name ?? u.email })
   }
 
   return (
@@ -50,14 +46,14 @@ export default async function TreinosPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fichas de Treino</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {isAdmin ? `${plans?.length ?? 0} fichas no total` : "Suas fichas ativas"}
           </p>
         </div>
         {isAdmin && (
           <Button asChild>
             <Link href="/treinos/nova">
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="h-4 w-4 mr-1.5" />
               Nova ficha
             </Link>
           </Button>
@@ -65,8 +61,10 @@ export default async function TreinosPage() {
       </div>
 
       {!plans?.length && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-          <Dumbbell className="h-8 w-8 text-muted-foreground mb-3" />
+        <GymCard className="flex flex-col items-center justify-center p-12 text-center border-dashed">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-3">
+            <Dumbbell className="h-6 w-6 text-muted-foreground" />
+          </div>
           <p className="text-sm font-medium">
             {isAdmin ? "Nenhuma ficha criada ainda." : "Nenhuma ficha atribuída a você ainda."}
           </p>
@@ -75,46 +73,53 @@ export default async function TreinosPage() {
               <Link href="/treinos/nova">Criar primeira ficha</Link>
             </Button>
           )}
-        </div>
+        </GymCard>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {plans?.map((plan) => {
           const exerciseCount = (plan.exercises as unknown as { count: number }[])[0]?.count ?? 0
           const assignedName = plan.assigned_to ? userMap[plan.assigned_to] : null
 
           return (
             <Link key={plan.id} href={`/treinos/${plan.id}`}>
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base leading-tight">{plan.name}</CardTitle>
-                    <Badge variant={plan.is_active ? "default" : "secondary"} className="shrink-0">
-                      {plan.is_active ? "Ativa" : "Inativa"}
-                    </Badge>
+              <GymCard className="p-4 hover:border-primary/30 transition-colors cursor-pointer h-full">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <Dumbbell className="h-5 w-5 text-primary" />
                   </div>
-                  {plan.description && (
-                    <CardDescription className="line-clamp-2">{plan.description}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="pt-0 space-y-2">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Dumbbell className="h-3.5 w-3.5" />
-                      {exerciseCount} exercício{exerciseCount !== 1 ? "s" : ""}
-                    </span>
-                    {isAdmin && assignedName && (
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm leading-tight">{plan.name}</p>
+                      <Badge
+                        variant={plan.is_active ? "default" : "secondary"}
+                        className={`text-[10px] shrink-0 ${plan.is_active ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/20" : ""}`}
+                      >
+                        {plan.is_active ? "Ativa" : "Inativa"}
+                      </Badge>
+                    </div>
+                    {plan.description && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{plan.description}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        {assignedName}
+                        <Dumbbell className="h-3 w-3" />
+                        {exerciseCount} ex.
                       </span>
-                    )}
-                    {isAdmin && !assignedName && (
-                      <span className="text-muted-foreground/60">Sem atribuição</span>
-                    )}
+                      {isAdmin && assignedName && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {assignedName}
+                        </span>
+                      )}
+                      {isAdmin && !assignedName && (
+                        <span className="text-muted-foreground/50">Sem atribuição</span>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                </div>
+              </GymCard>
             </Link>
           )
         })}

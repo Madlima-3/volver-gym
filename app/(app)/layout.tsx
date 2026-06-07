@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { LogoutButton } from "@/components/LogoutButton"
+import { SidebarNav, BottomNav } from "@/components/layout/AppNav"
 import { Dumbbell } from "lucide-react"
 
 export default async function AppLayout({
@@ -9,13 +10,8 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/login")
-  }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
 
   const { data: profile } = await supabase
     .from("users")
@@ -23,44 +19,53 @@ export default async function AppLayout({
     .eq("id", user.id)
     .single()
 
+  const isAdmin = profile?.role === "admin"
+  const displayName = profile?.name ?? user.email ?? ""
+  const initials = displayName.charAt(0).toUpperCase()
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b bg-card">
-        <div className="mx-auto max-w-5xl flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Volver Gym</span>
+    <div className="min-h-screen">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-border bg-card">
+        {/* Logo */}
+        <div className="flex h-16 items-center gap-3 px-5 border-b border-border">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
+            <Dumbbell className="h-4 w-4 text-primary" />
           </div>
+          <span className="font-bold text-base tracking-tight">Volver Gym</span>
+        </div>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <a href="/dashboard" className="text-foreground hover:text-primary transition-colors">
-              Início
-            </a>
-            <a href="/treinos" className="text-muted-foreground hover:text-primary transition-colors">
-              Treinos
-            </a>
-            <a href="/historico" className="text-muted-foreground hover:text-primary transition-colors">
-              Histórico
-            </a>
-            {profile?.role === "admin" && (
-              <a href="/admin" className="text-muted-foreground hover:text-primary transition-colors">
-                Admin
-              </a>
-            )}
-          </nav>
+        {/* Navigation links */}
+        <div className="flex-1 overflow-y-auto">
+          <SidebarNav isAdmin={isAdmin} />
+        </div>
 
+        {/* User info + logout */}
+        <div className="border-t border-border p-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              {profile?.name ?? user.email}
-            </span>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+              <span className="text-xs font-bold text-primary">{initials}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate leading-tight">{displayName}</p>
+              {profile?.name && (
+                <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+              )}
+            </div>
             <LogoutButton />
           </div>
         </div>
-      </header>
+      </aside>
 
-      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-8">
-        {children}
-      </main>
+      {/* Main content */}
+      <div className="md:pl-64">
+        <main className="min-h-screen mx-auto max-w-4xl px-4 py-6 pb-24 md:pb-8">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <BottomNav isAdmin={isAdmin} />
     </div>
   )
 }
