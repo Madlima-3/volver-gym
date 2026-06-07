@@ -57,7 +57,7 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle className="text-lg">Entrar</CardTitle>
             <CardDescription>
-              Use o email e senha do seu convite
+              Use o email e a senha que você criou ao aceitar o convite
             </CardDescription>
           </CardHeader>
           <CardContent>
