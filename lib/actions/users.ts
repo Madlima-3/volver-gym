@@ -20,29 +20,36 @@ async function requireAdmin() {
   return { supabase, adminId: user.id }
 }
 
-export async function inviteUser(formData: FormData) {
+export type InviteState = { error?: string; success?: boolean }
+
+export async function inviteUser(
+  _prevState: InviteState,
+  formData: FormData
+): Promise<InviteState> {
   const { adminId } = await requireAdmin()
 
   const email = formData.get("email") as string
-  const name = formData.get("name") as string
+  const name = (formData.get("name") as string) || null
+
+  if (!email) return { error: "Email é obrigatório." }
 
   const adminClient = createAdminClient()
 
-  // Envia convite por email via Supabase Auth
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    data: { name },
+    data: name ? { name } : {},
   })
 
-  if (error) throw new Error(error.message)
+  if (error) return { error: error.message }
 
-  // Atualiza o perfil com o nome e quem convidou
-  await adminClient
-    .from("users")
-    .update({ name, invited_by: adminId })
-    .eq("id", data.user.id)
+  if (name) {
+    await adminClient
+      .from("users")
+      .update({ name, invited_by: adminId })
+      .eq("id", data.user.id)
+  }
 
   revalidatePath("/admin/usuarios")
-  redirect("/admin/usuarios")
+  return { success: true }
 }
 
 export async function updateUserRole(userId: string, role: string) {
