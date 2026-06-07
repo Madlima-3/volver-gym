@@ -52,6 +52,22 @@ export async function inviteUser(
   return { success: true }
 }
 
+export async function deleteUser(userId: string) {
+  const { supabase: _s, adminId } = await requireAdmin()
+
+  if (userId === adminId) {
+    return { error: "Você não pode excluir sua própria conta." }
+  }
+
+  const adminClient = createAdminClient()
+  const { error } = await adminClient.auth.admin.deleteUser(userId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/admin/usuarios")
+  redirect("/admin/usuarios")
+}
+
 export async function updateUserRole(userId: string, role: string) {
   const { supabase } = await requireAdmin()
 
