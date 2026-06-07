@@ -32,6 +32,8 @@ export async function addExercise(workoutPlanId: string, formData: FormData) {
 
   const nextIndex = (existing?.[0]?.order_index ?? -1) + 1
 
+  const muscle_group = (formData.get("muscle_group") as string) || null
+
   const { error } = await supabase.from("exercises").insert({
     workout_plan_id: workoutPlanId,
     name: formData.get("name") as string,
@@ -40,6 +42,7 @@ export async function addExercise(workoutPlanId: string, formData: FormData) {
     suggested_weight: Number(formData.get("suggested_weight")) || null,
     notes: (formData.get("notes") as string) || null,
     order_index: nextIndex,
+    muscle_group,
   })
 
   if (error) throw new Error(error.message)

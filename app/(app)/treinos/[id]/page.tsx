@@ -37,14 +37,20 @@ export default async function FichaDetailPage({ params }: Props) {
 
   const { data: exercisesData } = await supabase
     .from("exercises")
-    .select("id, name, sets, reps, suggested_weight, notes, order_index")
+    .select("id, name, sets, reps, suggested_weight, notes, order_index, muscle_group")
     .eq("workout_plan_id", id)
     .order("order_index")
 
   const exercises = (exercisesData ?? []) as {
     id: string; name: string; sets: number | null; reps: string | null;
-    suggested_weight: number | null; notes: string | null; order_index: number
+    suggested_weight: number | null; notes: string | null; order_index: number; muscle_group: string | null
   }[]
+
+  const { data: templatesData } = await supabase
+    .from("exercise_templates")
+    .select("name, muscle_group")
+    .order("muscle_group")
+    .order("name")
 
   // Bound server actions passed as props (not imported directly in client components)
   const addExerciseAction = addExercise.bind(null, id)
@@ -115,6 +121,9 @@ export default async function FichaDetailPage({ params }: Props) {
                         {ex.sets && <span className="text-xs text-muted-foreground">{ex.sets} séries</span>}
                         {ex.reps && <span className="text-xs text-muted-foreground">{ex.reps} reps</span>}
                         {ex.suggested_weight && <span className="text-xs text-muted-foreground">{ex.suggested_weight} kg</span>}
+                        {ex.muscle_group && (
+                          <span className="text-xs text-muted-foreground">{ex.muscle_group}</span>
+                        )}
                       </div>
                       {ex.notes && <p className="text-xs text-muted-foreground mt-1 italic">{ex.notes}</p>}
                     </div>
@@ -125,7 +134,7 @@ export default async function FichaDetailPage({ params }: Props) {
             </div>
           )}
 
-          {isAdmin && <AddExerciseForm action={addExerciseAction} />}
+          {isAdmin && <AddExerciseForm action={addExerciseAction} templates={templatesData ?? []} />}
         </div>
 
         {isAdmin && (

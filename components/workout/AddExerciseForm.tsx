@@ -7,19 +7,38 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, X } from "lucide-react"
 
+type Template = { name: string; muscle_group: string }
+
 type Props = {
   action: (formData: FormData) => Promise<void>
+  templates: Template[]
 }
 
-export function AddExerciseForm({ action }: Props) {
+export function AddExerciseForm({ action, templates }: Props) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("")
+  const [muscleGroup, setMuscleGroup] = useState("")
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       await action(formData)
       setOpen(false)
+      setSelectedMuscleGroup("")
+      setMuscleGroup("")
     })
+  }
+
+  const muscleGroups = Array.from(new Set(templates.map((t) => t.muscle_group))).sort()
+
+  const filteredTemplates = selectedMuscleGroup
+    ? templates.filter((t) => t.muscle_group === selectedMuscleGroup)
+    : templates
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    const matched = templates.find((t) => t.name === value)
+    setMuscleGroup(matched ? matched.muscle_group : "")
   }
 
   if (!open) {
@@ -41,8 +60,40 @@ export function AddExerciseForm({ action }: Props) {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="ex-muscle-filter">Grupo muscular</Label>
+        <select
+          id="ex-muscle-filter"
+          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          value={selectedMuscleGroup}
+          onChange={(e) => {
+            setSelectedMuscleGroup(e.target.value)
+            setMuscleGroup("")
+          }}
+        >
+          <option value="">Todos os grupos</option>
+          {muscleGroups.map((mg) => (
+            <option key={mg} value={mg}>{mg}</option>
+          ))}
+        </select>
+      </div>
+
+      <datalist id="exercise-templates-list">
+        {filteredTemplates.map((t) => (
+          <option key={t.name} value={t.name} />
+        ))}
+      </datalist>
+
+      <div className="space-y-2">
         <Label htmlFor="ex-name">Nome *</Label>
-        <Input id="ex-name" name="name" placeholder="ex: Supino reto" required />
+        <Input
+          id="ex-name"
+          name="name"
+          placeholder="ex: Supino reto"
+          required
+          list="exercise-templates-list"
+          onChange={handleNameChange}
+        />
+        <input type="hidden" name="muscle_group" value={muscleGroup} />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
