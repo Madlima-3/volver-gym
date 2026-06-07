@@ -1,9 +1,10 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Home, Dumbbell, ClipboardList, ShieldCheck } from "lucide-react"
+import { Home, Dumbbell, ClipboardList, ShieldCheck, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 
 const BASE_LINKS = [
   { href: "/dashboard", icon: Home, label: "Início" },
@@ -47,7 +48,15 @@ export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
 
 export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname()
+  const router = useRouter()
   const links = useLinks(isAdmin)
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border bg-card/90 backdrop-blur-md">
@@ -68,6 +77,13 @@ export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           )
         })}
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl text-muted-foreground transition-colors active:text-destructive"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Sair</span>
+        </button>
       </div>
     </nav>
   )
