@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GymCard } from "@/components/ui/GymCard"
-import { Users, ClipboardList, UserPlus, ChevronRight } from "lucide-react"
+import { Users, ClipboardList, UserPlus, ChevronRight, Dumbbell } from "lucide-react"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -64,6 +64,12 @@ export default async function AdminPage() {
               <Link href="/treinos/nova">
                 <ClipboardList className="h-4 w-4 mr-2" />
                 Nova ficha
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild className="justify-start">
+              <Link href="/admin/exercicios">
+                <Dumbbell className="h-4 w-4 mr-2" />
+                Banco de exercícios
               </Link>
             </Button>
           </div>
