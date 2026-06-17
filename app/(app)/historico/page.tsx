@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { GymCard } from "@/components/ui/GymCard"
+import { WorkoutCalendar } from "@/components/workout/WorkoutCalendar"
 import { ClipboardList, MessageSquare, ChevronRight } from "lucide-react"
 
 export default async function HistoricoPage() {
@@ -16,6 +17,12 @@ export default async function HistoricoPage() {
     .eq("user_id", user.id)
     .order("executed_at", { ascending: false })
 
+  const calendarLogs = (logs ?? []).map((l) => ({
+    id: l.id,
+    executed_at: l.executed_at,
+    planName: (l.workout_plans as unknown as { name: string } | null)?.name ?? null,
+  }))
+
   return (
     <div className="space-y-6">
       <div>
@@ -26,6 +33,10 @@ export default async function HistoricoPage() {
             : "Nenhum treino ainda"}
         </p>
       </div>
+
+      {logs && logs.length > 0 && (
+        <WorkoutCalendar logs={calendarLogs} />
+      )}
 
       {!logs?.length && (
         <GymCard className="flex flex-col items-center justify-center p-12 text-center border-dashed">
