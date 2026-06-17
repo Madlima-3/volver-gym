@@ -1,21 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { DayPicker } from "react-day-picker"
-import { ptBR } from "react-day-picker/locale"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { GymCard } from "@/components/ui/GymCard"
-import { ChevronRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-type Log = {
-  id: string
-  executed_at: string
-  planName: string | null
-}
-
-type Props = {
-  logs: Log[]
-}
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+const MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+]
 
 function sameDay(a: Date, b: Date) {
   return (
@@ -25,80 +20,119 @@ function sameDay(a: Date, b: Date) {
   )
 }
 
-export function WorkoutCalendar({ logs }: Props) {
-  const [month, setMonth] = useState(new Date())
-  const [selected, setSelected] = useState<Date | undefined>()
+type Log = { id: string; executed_at: string; planName: string | null }
+
+export function WorkoutCalendar({ logs }: { logs: Log[] }) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
 
   const trainingDates = logs.map((l) => new Date(l.executed_at))
 
-  const selectedLogs = selected
-    ? logs.filter((l) => sameDay(new Date(l.executed_at), selected))
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1) }
+    else setViewMonth((m) => m - 1)
+    setSelectedDay(null)
+  }
+
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1) }
+    else setViewMonth((m) => m + 1)
+    setSelectedDay(null)
+  }
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay()
+
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfWeek).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const selectedLogs = selectedDay
+    ? logs.filter((l) => sameDay(new Date(l.executed_at), selectedDay))
     : []
 
   return (
     <GymCard className="p-4 space-y-3">
-      <DayPicker
-        locale={ptBR}
-        month={month}
-        onMonthChange={setMonth}
-        modifiers={{ trained: trainingDates }}
-        modifiersClassNames={{
-          trained: "rdp-trained",
-        }}
-        selected={selected}
-        onSelect={(day: Date | undefined) => setSelected((prev) => (prev && day && sameDay(prev, day) ? undefined : day))}
-        classNames={{
-          root: "w-full",
-          months: "w-full",
-          month: "w-full",
-          month_caption: "flex items-center justify-between px-1 mb-3",
-          caption_label: "text-sm font-semibold capitalize",
-          nav: "flex items-center gap-1",
-          button_previous:
-            "h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
-          button_next:
-            "h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors",
-          chevron: "h-4 w-4",
-          month_grid: "w-full border-collapse",
-          weekdays: "mb-1",
-          weekday: "text-[11px] font-medium text-muted-foreground text-center pb-2 w-[14.28%]",
-          weeks: "",
-          week: "flex",
-          day: "relative flex-1 h-9 text-center p-0",
-          day_button:
-            "mx-auto h-9 w-9 text-sm rounded-lg transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          today: "font-bold text-foreground",
-          outside: "opacity-25 pointer-events-none",
-          selected: "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary",
-        }}
-      />
+      {/* Month navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={prevMonth}
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="text-sm font-semibold">
+          {MONTHS[viewMonth]} {viewYear}
+        </p>
+        <button
+          onClick={nextMonth}
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
 
-      {/* Inline CSS for trained modifier */}
-      <style>{`
-        .rdp-trained button {
-          background-color: color-mix(in oklch, var(--color-primary) 20%, transparent);
-          color: var(--color-primary);
-          font-weight: 600;
-        }
-        .rdp-selected .rdp-trained button,
-        .rdp-trained.rdp-selected button {
-          background-color: var(--color-primary) !important;
-          color: var(--color-primary-foreground) !important;
-        }
-      `}</style>
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 text-center">
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="text-[11px] font-medium text-muted-foreground py-1">
+            {d}
+          </div>
+        ))}
+      </div>
 
-      {/* Selected day workouts */}
-      {selected && (
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-y-1">
+        {cells.map((day, i) => {
+          if (!day) return <div key={`empty-${i}`} />
+
+          const date = new Date(viewYear, viewMonth, day)
+          const isTrained = trainingDates.some((d) => sameDay(d, date))
+          const isToday = sameDay(date, today)
+          const isSelected = !!selectedDay && sameDay(date, selectedDay)
+
+          return (
+            <div key={day} className="flex items-center justify-center">
+              <button
+                onClick={() => setSelectedDay(isSelected ? null : date)}
+                className={cn(
+                  "h-9 w-9 rounded-lg text-sm transition-colors",
+                  isSelected
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : isTrained
+                    ? "bg-primary/20 text-primary font-semibold hover:bg-primary/30"
+                    : isToday
+                    ? "font-bold hover:bg-secondary"
+                    : "text-foreground hover:bg-secondary"
+                )}
+              >
+                {day}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Selected day panel */}
+      {selectedDay && (
         <div className="border-t border-border pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+            {selectedDay.toLocaleDateString("pt-BR", {
+              weekday: "long",
+              day: "2-digit",
+              month: "long",
+            })}
+          </p>
           {selectedLogs.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-2">
               Nenhum treino neste dia.
             </p>
           ) : (
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-                {selected.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-              </p>
               {selectedLogs.map((l) => (
                 <Link key={l.id} href={`/historico/${l.id}`}>
                   <div className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-secondary transition-colors cursor-pointer">
