@@ -38,7 +38,7 @@
   --background: oklch(0.08 0.003 280);
   --foreground: oklch(0.95 0.002 280);
 
-  --card: oklch(0.13 0.004 280);
+  --card: oklch(0.17 0.005 280);
   --card-foreground: oklch(0.95 0.002 280);
 
   --popover: oklch(0.16 0.005 280);
@@ -49,10 +49,10 @@
   --primary-foreground: oklch(0.98 0 0);
 
   /* Secondary — elevated surface */
-  --secondary: oklch(0.18 0.005 280);
+  --secondary: oklch(0.23 0.006 280);
   --secondary-foreground: oklch(0.95 0.002 280);
 
-  --muted: oklch(0.18 0.005 280);
+  --muted: oklch(0.22 0.005 280);
   --muted-foreground: oklch(0.55 0.012 270);
 
   /* Accent — gym purple */

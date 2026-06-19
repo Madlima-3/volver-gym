@@ -136,7 +136,7 @@ export default async function WorkoutLogPage({ params }: Props) {
 
       {/* Notas gerais */}
       {log.notes && (
-        <div className="rounded-lg border bg-muted/30 p-3">
+        <div className="rounded-lg border bg-card p-3">
           <p className="text-xs font-medium text-muted-foreground mb-1">Notas do treino</p>
           <p className="text-sm">{log.notes}</p>
         </div>
