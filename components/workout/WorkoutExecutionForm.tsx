@@ -191,7 +191,7 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
               className={cn(
                 "p-4 space-y-4 transition-colors",
                 s.completed
-                  ? "bg-muted/30 border-muted"
+                  ? "bg-primary/10 border-primary/30"
                   : s.setsDone > 0 && "border-primary/20"
               )}
             >
