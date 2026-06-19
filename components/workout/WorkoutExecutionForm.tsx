@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
-import { Dumbbell, Timer, Plus, Minus, X } from "lucide-react"
+import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2 } from "lucide-react"
 
 type Exercise = {
   id: string
@@ -24,6 +24,7 @@ type Exercise = {
 
 type ExState = {
   setsDone: number
+  completed: boolean
   reps: string
   weight: string
   exNotes: string
@@ -80,6 +81,7 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
         ex.id,
         {
           setsDone: 0,
+          completed: false,
           reps: ex.reps ?? "",
           weight: String(ex.lastWeight ?? ex.suggested_weight ?? ""),
           exNotes: "",
@@ -126,8 +128,11 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
         try { navigator.vibrate([300, 100, 300]) } catch {}
         setExStates((prev) => {
           const next = { ...prev }
-          Object.entries(updates).forEach(([id, patch]) => {
-            next[id] = { ...next[id], ...patch }
+          Object.entries(updates).forEach(([exId, patch]) => {
+            const merged = { ...next[exId], ...patch }
+            const ex = exercises.find((e) => e.id === exId)
+            if (ex?.sets && merged.setsDone >= ex.sets) merged.completed = true
+            next[exId] = merged
           })
           return next
         })
@@ -155,7 +160,7 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
     startTransition(() => logWorkout(fd))
   }
 
-  const activeCount = exercises.filter((ex) => exStates[ex.id].setsDone > 0).length
+  const activeCount = exercises.filter((ex) => exStates[ex.id].completed).length
 
   return (
     <div className="space-y-6">
@@ -183,7 +188,12 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
           return (
             <GymCard
               key={ex.id}
-              className={cn("p-4 space-y-4 transition-colors", s.setsDone > 0 && "border-primary/20")}
+              className={cn(
+                "p-4 space-y-4 transition-colors",
+                s.completed
+                  ? "bg-muted/30 border-muted"
+                  : s.setsDone > 0 && "border-primary/20"
+              )}
             >
               {/* Header */}
               <div className="flex items-start gap-2">
@@ -205,6 +215,19 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
                     </p>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => update(ex.id, { completed: !s.completed })}
+                  className="shrink-0 mt-0.5"
+                  title={s.completed ? "Desmarcar como concluído" : "Marcar como concluído"}
+                >
+                  <CheckCircle2
+                    className={cn(
+                      "h-5 w-5 transition-colors",
+                      s.completed ? "text-primary fill-primary/20" : "text-muted-foreground"
+                    )}
+                  />
+                </button>
               </div>
 
               {ex.notes && (
@@ -234,7 +257,11 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => update(ex.id, { setsDone: s.setsDone + 1 })}
+                    onClick={() => {
+                      const newSets = s.setsDone + 1
+                      const autoComplete = ex.sets ? newSets >= ex.sets : false
+                      update(ex.id, { setsDone: newSets, completed: autoComplete || s.completed })
+                    }}
                     className="h-9 w-9 flex items-center justify-center rounded-lg border border-border hover:bg-secondary transition-colors"
                   >
                     <Plus className="h-4 w-4" />
