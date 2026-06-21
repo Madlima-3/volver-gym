@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { LogoutButton } from "@/components/LogoutButton"
 import { SidebarNav, BottomNav } from "@/components/layout/AppNav"
-import { Dumbbell } from "lucide-react"
+import Image from "next/image"
 
 export default async function AppLayout({
   children,
@@ -29,9 +29,7 @@ export default async function AppLayout({
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-border bg-card">
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 px-5 border-b border-border">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
-            <Dumbbell className="h-4 w-4 text-primary" />
-          </div>
+          <Image src="/logo-white.png" alt="Volver Gym" width={32} height={32} className="shrink-0" />
           <span className="font-bold text-base tracking-tight">Volver Gym</span>
         </div>
 
