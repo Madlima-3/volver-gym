@@ -16,6 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Volver Gym",
   description: "Acompanhamento de treinos para família e amigos",
+  applicationName: "Volver Gym",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Volver Gym",
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 }
 
 export default function RootLayout({
