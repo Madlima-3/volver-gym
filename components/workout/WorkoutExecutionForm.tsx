@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
-import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2 } from "lucide-react"
+import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle } from "lucide-react"
 
 type Exercise = {
   id: string
@@ -183,22 +183,43 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
     setExStates((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))
   }
 
-  function handleSubmit() {
+  const [confirmPending, setConfirmPending] = useState(false)
+
+  function submitWorkout() {
+    setConfirmPending(false)
     try { localStorage.removeItem(STORAGE_KEY(logId)) } catch {}
     const fd = new FormData()
     fd.append("notes", notes)
-    fd.append("exercise_ids", exercises.map((e) => e.id).join(","))
-    exercises.forEach((ex) => {
-      const s = exStates[ex.id]
-      fd.append(`ex_${ex.id}_sets`, String(s.setsDone || ex.sets || ""))
-      fd.append(`ex_${ex.id}_reps`, s.reps)
-      fd.append(`ex_${ex.id}_weight`, s.weight)
-      fd.append(`ex_${ex.id}_notes`, s.exNotes)
+    // Only log exercises that were actually executed
+    const doneIds = exercises
+      .filter((ex) => exStates[ex.id].setsDone > 0 || exStates[ex.id].completed)
+      .map((ex) => ex.id)
+    fd.append("exercise_ids", doneIds.join(","))
+    doneIds.forEach((exId) => {
+      const s = exStates[exId]
+      fd.append(`ex_${exId}_sets`, String(s.setsDone))
+      fd.append(`ex_${exId}_reps`, s.reps)
+      fd.append(`ex_${exId}_weight`, s.weight)
+      fd.append(`ex_${exId}_notes`, s.exNotes)
     })
     startTransition(() => completeWorkout(logId, fd))
   }
 
+  function handleSubmit() {
+    const notDone = exercises.filter(
+      (ex) => !exStates[ex.id].completed && exStates[ex.id].setsDone === 0
+    )
+    if (notDone.length > 0) {
+      setConfirmPending(true)
+    } else {
+      submitWorkout()
+    }
+  }
+
   const activeCount = exercises.filter((ex) => exStates[ex.id].completed).length
+  const notDoneCount = exercises.filter(
+    (ex) => !exStates[ex.id].completed && exStates[ex.id].setsDone === 0
+  ).length
 
   return (
     <div className="space-y-6">
@@ -443,16 +464,48 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
         />
       </div>
 
+      {/* Confirm dialog for uncompleted exercises */}
+      {confirmPending && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-500 font-medium">
+              Atenção: {notDoneCount} exercício{notDoneCount !== 1 ? "s" : ""} não{notDoneCount !== 1 ? " foram" : " foi"} executado{notDoneCount !== 1 ? "s" : ""}. Deseja finalizar o treino mesmo assim?
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 h-9 text-sm"
+              onClick={() => setConfirmPending(false)}
+            >
+              Voltar
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 h-9 text-sm"
+              onClick={submitWorkout}
+              disabled={isPending}
+            >
+              {isPending ? "Salvando..." : "Sim, finalizar"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Submit */}
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        className="w-full h-12 text-base font-semibold"
-        disabled={isPending}
-      >
-        <Dumbbell className="h-5 w-5 mr-2" />
-        {isPending ? "Salvando treino..." : "Concluir treino"}
-      </Button>
+      {!confirmPending && (
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          className="w-full h-12 text-base font-semibold"
+          disabled={isPending}
+        >
+          <Dumbbell className="h-5 w-5 mr-2" />
+          {isPending ? "Salvando treino..." : "Concluir treino"}
+        </Button>
+      )}
     </div>
   )
 }

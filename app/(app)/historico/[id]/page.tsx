@@ -52,6 +52,17 @@ export default async function WorkoutLogPage({ params }: Props) {
     exercises: { id: string; name: string; sets: number | null; reps: string | null; suggested_weight: number | null } | null
   }[])
 
+  // Fetch all exercises from the plan to show "Não executado" for missing ones
+  let planExercises: { id: string; name: string; order_index: number }[] = []
+  if (plan && !inProgress) {
+    const { data: exData } = await supabase
+      .from("exercises")
+      .select("id, name, order_index")
+      .eq("workout_plan_id", plan.id)
+      .order("order_index")
+    planExercises = exData ?? []
+  }
+
   const date = new Date(log.executed_at)
 
   return (
@@ -109,7 +120,23 @@ export default async function WorkoutLogPage({ params }: Props) {
           <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
             Exercícios
           </h2>
-          {exerciseLogs.map((el, idx) => {
+          {planExercises.map((planEx, idx) => {
+            const el = exerciseLogs.find((l) => l.exercises?.id === planEx.id)
+
+            if (!el) {
+              return (
+                <div key={planEx.id} className="rounded-xl border border-dashed bg-card/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-semibold">
+                      {idx + 1}
+                    </span>
+                    <p className="font-semibold text-sm text-muted-foreground">{planEx.name}</p>
+                    <span className="ml-auto text-xs text-muted-foreground italic">Não executado</span>
+                  </div>
+                </div>
+              )
+            }
+
             const ex = el.exercises
             const weightDiff =
               el.weight_used && ex?.suggested_weight
@@ -122,7 +149,7 @@ export default async function WorkoutLogPage({ params }: Props) {
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
                     {idx + 1}
                   </span>
-                  <p className="font-semibold text-sm">{ex?.name ?? "Exercício"}</p>
+                  <p className="font-semibold text-sm">{ex?.name ?? planEx.name}</p>
                   {weightDiff !== null && weightDiff > 0 && (
                     <span className="ml-auto flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
                       <TrendingUp className="h-3 w-3" />
@@ -155,6 +182,50 @@ export default async function WorkoutLogPage({ params }: Props) {
                 {ex?.suggested_weight && el.weight_used && (
                   <p className="text-xs text-muted-foreground">
                     Carga sugerida: {ex.suggested_weight} kg
+                  </p>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Fallback: exercises logged without plan cross-reference */}
+          {planExercises.length === 0 && exerciseLogs.map((el, idx) => {
+            const ex = el.exercises
+            const weightDiff =
+              el.weight_used && ex?.suggested_weight
+                ? el.weight_used - ex.suggested_weight
+                : null
+            return (
+              <div key={el.id} className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                    {idx + 1}
+                  </span>
+                  <p className="font-semibold text-sm">{ex?.name ?? "Exercício"}</p>
+                  {weightDiff !== null && weightDiff > 0 && (
+                    <span className="ml-auto flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
+                      <TrendingUp className="h-3 w-3" />
+                      +{weightDiff} kg
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.sets_done ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">séries</p>
+                  </div>
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.reps_done ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">reps</p>
+                  </div>
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.weight_used ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">kg</p>
+                  </div>
+                </div>
+                {el.notes && (
+                  <p className="text-xs text-muted-foreground italic border-l-2 pl-2">
+                    {el.notes}
                   </p>
                 )}
               </div>

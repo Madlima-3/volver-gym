@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react"
 import Link from "next/link"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
@@ -20,15 +20,13 @@ function sameDay(a: Date, b: Date) {
   )
 }
 
-type Log = { id: string; executed_at: string; planName: string | null }
+type Log = { id: string; executed_at: string; planName: string | null; status?: string }
 
 export function WorkoutCalendar({ logs }: { logs: Log[] }) {
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
-
-  const trainingDates = logs.map((l) => new Date(l.executed_at))
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1) }
@@ -91,7 +89,9 @@ export function WorkoutCalendar({ logs }: { logs: Log[] }) {
           if (!day) return <div key={`empty-${i}`} />
 
           const date = new Date(viewYear, viewMonth, day)
-          const isTrained = trainingDates.some((d) => sameDay(d, date))
+          const dayLogs = logs.filter((l) => sameDay(new Date(l.executed_at), date))
+          const hasCompleted = dayLogs.some((l) => !l.status || l.status === "completed")
+          const hasInProgress = dayLogs.some((l) => l.status === "in_progress")
           const isToday = sameDay(date, today)
           const isSelected = !!selectedDay && sameDay(date, selectedDay)
 
@@ -100,21 +100,39 @@ export function WorkoutCalendar({ logs }: { logs: Log[] }) {
               <button
                 onClick={() => setSelectedDay(isSelected ? null : date)}
                 className={cn(
-                  "h-9 w-9 rounded-lg text-sm transition-colors",
+                  "relative h-9 w-9 rounded-lg text-sm transition-colors font-semibold",
                   isSelected
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : isTrained
-                    ? "bg-primary/20 text-primary font-semibold hover:bg-primary/30"
+                    ? "bg-primary text-primary-foreground"
+                    : hasCompleted
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : hasInProgress
+                    ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30"
                     : isToday
-                    ? "font-bold hover:bg-secondary"
-                    : "text-foreground hover:bg-secondary"
+                    ? "font-bold text-foreground hover:bg-secondary"
+                    : "font-normal text-foreground hover:bg-secondary"
                 )}
               >
                 {day}
+                {/* Dot indicator when day has both completed and in_progress */}
+                {hasCompleted && hasInProgress && !isSelected && (
+                  <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                )}
               </button>
             </div>
           )
         })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 pt-1">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-primary/20" />
+          <span className="text-[11px] text-muted-foreground">Concluído</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-amber-500/20" />
+          <span className="text-[11px] text-muted-foreground">Em andamento</span>
+        </div>
       </div>
 
       {/* Selected day panel */}
@@ -137,12 +155,18 @@ export function WorkoutCalendar({ logs }: { logs: Log[] }) {
                 <Link key={l.id} href={`/historico/${l.id}`}>
                   <div className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-secondary transition-colors cursor-pointer">
                     <div>
-                      <p className="text-sm font-medium">{l.planName ?? "Treino"}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium">{l.planName ?? "Treino"}</p>
+                        {l.status === "in_progress" && (
+                          <Clock className="h-3 w-3 text-amber-500" />
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {new Date(l.executed_at).toLocaleTimeString("pt-BR", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
+                        {l.status === "in_progress" && " · Em andamento"}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
