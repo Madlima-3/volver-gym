@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminFeedbackForm } from "@/components/workout/AdminFeedbackForm"
-import { ArrowLeft, MessageSquare, TrendingUp, Clock } from "lucide-react"
+import { ArrowLeft, MessageSquare, TrendingUp, Clock, Play } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -41,6 +41,7 @@ export default async function WorkoutLogPage({ params }: Props) {
   if (!isAdmin && log.user_id !== user.id) redirect("/historico")
 
   const plan = log.workout_plans as unknown as { id: string; name: string } | null
+  const inProgress = (log as any).status === "in_progress"
 
   const exerciseLogs = (log.exercise_logs as unknown as {
     id: string
@@ -62,9 +63,9 @@ export default async function WorkoutLogPage({ params }: Props) {
           </Link>
         </Button>
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold tracking-tight">{plan?.name ?? "Treino"}</h1>
-            {(log as any).status === "in_progress" && (
+            {inProgress && (
               <span className="flex items-center gap-1 text-xs font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
                 <Clock className="h-3 w-3" />
                 Em andamento
@@ -84,66 +85,86 @@ export default async function WorkoutLogPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Exercícios realizados */}
-      <div className="space-y-3">
-        <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-          Exercícios
-        </h2>
-        {exerciseLogs.map((el, idx) => {
-          const ex = el.exercises
-          const weightDiff =
-            el.weight_used && ex?.suggested_weight
-              ? el.weight_used - ex.suggested_weight
-              : null
+      {/* Treino em andamento: botão para continuar */}
+      {inProgress && plan && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+          <p className="text-sm text-amber-500 font-medium">
+            Este treino ainda não foi concluído.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Os exercícios só ficam registrados após clicar em "Concluir treino".
+          </p>
+          <Button asChild className="w-full">
+            <Link href={`/treinos/${plan.id}/executar`}>
+              <Play className="h-4 w-4 mr-2" />
+              Continuar treino
+            </Link>
+          </Button>
+        </div>
+      )}
 
-          return (
-            <div key={el.id} className="rounded-xl border bg-card p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                  {idx + 1}
-                </span>
-                <p className="font-semibold text-sm">{ex?.name ?? "Exercício"}</p>
-                {weightDiff !== null && weightDiff > 0 && (
-                  <span className="ml-auto flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
-                    <TrendingUp className="h-3 w-3" />
-                    +{weightDiff} kg
+      {/* Exercícios realizados (só para treinos concluídos) */}
+      {!inProgress && (
+        <div className="space-y-3">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            Exercícios
+          </h2>
+          {exerciseLogs.map((el, idx) => {
+            const ex = el.exercises
+            const weightDiff =
+              el.weight_used && ex?.suggested_weight
+                ? el.weight_used - ex.suggested_weight
+                : null
+
+            return (
+              <div key={el.id} className="rounded-xl border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                    {idx + 1}
                   </span>
+                  <p className="font-semibold text-sm">{ex?.name ?? "Exercício"}</p>
+                  {weightDiff !== null && weightDiff > 0 && (
+                    <span className="ml-auto flex items-center gap-0.5 text-xs text-emerald-600 font-medium">
+                      <TrendingUp className="h-3 w-3" />
+                      +{weightDiff} kg
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.sets_done ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">séries</p>
+                  </div>
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.reps_done ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">reps</p>
+                  </div>
+                  <div className="rounded-md bg-muted p-2">
+                    <p className="text-lg font-bold">{el.weight_used ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">kg</p>
+                  </div>
+                </div>
+
+                {el.notes && (
+                  <p className="text-xs text-muted-foreground italic border-l-2 pl-2">
+                    {el.notes}
+                  </p>
+                )}
+
+                {ex?.suggested_weight && el.weight_used && (
+                  <p className="text-xs text-muted-foreground">
+                    Carga sugerida: {ex.suggested_weight} kg
+                  </p>
                 )}
               </div>
-
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-md bg-muted p-2">
-                  <p className="text-lg font-bold">{el.sets_done ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">séries</p>
-                </div>
-                <div className="rounded-md bg-muted p-2">
-                  <p className="text-lg font-bold">{el.reps_done ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">reps</p>
-                </div>
-                <div className="rounded-md bg-muted p-2">
-                  <p className="text-lg font-bold">{el.weight_used ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">kg</p>
-                </div>
-              </div>
-
-              {el.notes && (
-                <p className="text-xs text-muted-foreground italic border-l-2 pl-2">
-                  {el.notes}
-                </p>
-              )}
-
-              {ex?.suggested_weight && el.weight_used && (
-                <p className="text-xs text-muted-foreground">
-                  Carga sugerida: {ex.suggested_weight} kg
-                </p>
-              )}
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Notas gerais */}
-      {log.notes && (
+      {log.notes && !inProgress && (
         <div className="rounded-lg border bg-card p-3">
           <p className="text-xs font-medium text-muted-foreground mb-1">Notas do treino</p>
           <p className="text-sm">{log.notes}</p>
@@ -166,12 +187,12 @@ export default async function WorkoutLogPage({ params }: Props) {
       )}
 
       {/* Feedback do admin (edição) */}
-      {isAdmin && (
+      {isAdmin && !inProgress && (
         <AdminFeedbackForm logId={id} currentFeedback={log.admin_feedback ?? null} />
       )}
 
       {/* Link para a ficha */}
-      {plan && (
+      {plan && !inProgress && (
         <Button variant="outline" className="w-full" asChild>
           <Link href={`/treinos/${plan.id}`}>Ver ficha: {plan.name}</Link>
         </Button>
