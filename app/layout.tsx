@@ -23,10 +23,6 @@ export const metadata: Metadata = {
     title: "Volver Gym",
   },
   formatDetection: { telephone: false },
-  icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
-  },
 }
 
 export default function RootLayout({
