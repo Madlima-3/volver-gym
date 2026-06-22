@@ -71,28 +71,65 @@ type Props = {
   logId: string
 }
 
+const STORAGE_KEY = (logId: string) => `workout_state_${logId}`
+
+function defaultExStates(exercises: Exercise[]): Record<string, ExState> {
+  return Object.fromEntries(
+    exercises.map((ex) => [
+      ex.id,
+      {
+        setsDone: 0,
+        completed: false,
+        reps: ex.reps ?? "",
+        weight: String(ex.lastWeight ?? ex.suggested_weight ?? ""),
+        exNotes: "",
+        timerEnd: null,
+        timerDuration: 60,
+        timerOpen: false,
+      } satisfies ExState,
+    ])
+  )
+}
+
 export function WorkoutExecutionForm({ exercises, logId }: Props) {
   const [isPending, startTransition] = useTransition()
   const [notes, setNotes] = useState("")
   const [now, setNow] = useState(Date.now())
 
   const [exStates, setExStates] = useState<Record<string, ExState>>(() =>
-    Object.fromEntries(
-      exercises.map((ex) => [
-        ex.id,
-        {
-          setsDone: 0,
-          completed: false,
-          reps: ex.reps ?? "",
-          weight: String(ex.lastWeight ?? ex.suggested_weight ?? ""),
-          exNotes: "",
-          timerEnd: null,
-          timerDuration: 60,
-          timerOpen: false,
-        } satisfies ExState,
-      ])
-    )
+    defaultExStates(exercises)
   )
+
+  // Restore from localStorage after mount (avoids SSR hydration mismatch)
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current) return
+    restoredRef.current = true
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY(logId))
+      if (saved) {
+        const parsed = JSON.parse(saved) as Record<string, ExState>
+        setExStates((prev) =>
+          Object.fromEntries(
+            exercises.map((ex) => [
+              ex.id,
+              // Reset timer state (would be stale after returning)
+              parsed[ex.id]
+                ? { ...parsed[ex.id], timerEnd: null, timerOpen: false }
+                : prev[ex.id],
+            ])
+          )
+        )
+      }
+    } catch {}
+  }, [logId, exercises])
+
+  // Auto-save state on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY(logId), JSON.stringify(exStates))
+    } catch {}
+  }, [exStates, logId])
 
   // Keep a ref so the interval always reads current state
   const exStatesRef = useRef(exStates)
@@ -147,6 +184,7 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
   }
 
   function handleSubmit() {
+    try { localStorage.removeItem(STORAGE_KEY(logId)) } catch {}
     const fd = new FormData()
     fd.append("notes", notes)
     fd.append("exercise_ids", exercises.map((e) => e.id).join(","))
