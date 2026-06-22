@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 import { WorkoutExecutionForm } from "@/components/workout/WorkoutExecutionForm"
+import { startWorkout } from "@/lib/actions/workout-logs"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -67,6 +68,8 @@ export default async function ExecutarTreinoPage({ params }: Props) {
     lastReps: lastLogs[ex.id]?.reps_done ?? null,
   }))
 
+  const logId = await startWorkout(id)
+
   return (
     <div className="max-w-lg mx-auto space-y-5">
       <div className="flex items-center gap-3">
@@ -87,6 +90,7 @@ export default async function ExecutarTreinoPage({ params }: Props) {
         workoutPlanId={id}
         planName={plan.name}
         exercises={exercisesWithHistory}
+        logId={logId}
       />
     </div>
   )

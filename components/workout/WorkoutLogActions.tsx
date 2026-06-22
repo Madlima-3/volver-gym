@@ -44,7 +44,7 @@ export function WorkoutLogActions({ logId, executedAt }: Props) {
             type="datetime-local"
             value={dateValue}
             onChange={(e) => setDateValue(e.target.value)}
-            max={new Date().toISOString().slice(0, 16)}
+            max={`${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}-${pad(new Date().getDate())}T${pad(new Date().getHours())}:${pad(new Date().getMinutes())}`}
             className="text-sm"
           />
           <div className="flex gap-2">
