@@ -20,10 +20,11 @@ export default async function HistoricoPage() {
 
   const completedLogs = (logs ?? []).filter((l) => (l as any).status !== "in_progress")
 
-  const calendarLogs = completedLogs.map((l) => ({
+  const calendarLogs = (logs ?? []).map((l) => ({
     id: l.id,
     executed_at: l.executed_at,
     planName: (l.workout_plans as unknown as { name: string } | null)?.name ?? null,
+    status: (l as any).status as string | undefined,
   }))
 
   return (
