@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { LogoutButton } from "@/components/LogoutButton"
 import { SidebarNav, BottomNav } from "@/components/layout/AppNav"
+import { PWAInstallButton } from "@/components/PWAInstallButton"
 import Image from "next/image"
 
 export default async function AppLayout({
@@ -36,6 +37,11 @@ export default async function AppLayout({
         {/* Navigation links */}
         <div className="flex-1 overflow-y-auto">
           <SidebarNav isAdmin={isAdmin} />
+        </div>
+
+        {/* Install button */}
+        <div className="px-3 pb-1">
+          <PWAInstallButton />
         </div>
 
         {/* User info + logout */}
