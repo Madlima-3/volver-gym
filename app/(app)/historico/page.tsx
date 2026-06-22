@@ -104,7 +104,7 @@ export default async function HistoricoPage() {
                           : "bg-secondary text-muted-foreground"
                       )}
                     >
-                      {exCount} ex.
+                      {inProgress ? "—" : `${exCount} ex.`}
                     </Badge>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
                   </div>
