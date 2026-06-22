@@ -13,9 +13,20 @@ export async function logWorkout(formData: FormData) {
   const notes = (formData.get("notes") as string) || null
   const exerciseIds = (formData.get("exercise_ids") as string).split(",").filter(Boolean)
 
+  const executedAtRaw = formData.get("executed_at") as string | null
+  const executedAt = executedAtRaw ? new Date(executedAtRaw) : null
+  const insertPayload: Record<string, unknown> = {
+    user_id: user.id,
+    workout_plan_id: workoutPlanId,
+    notes,
+  }
+  if (executedAt && !isNaN(executedAt.getTime())) {
+    insertPayload.executed_at = executedAt.toISOString()
+  }
+
   const { data: log, error: logError } = await supabase
     .from("workout_logs")
-    .insert({ user_id: user.id, workout_plan_id: workoutPlanId, notes })
+    .insert(insertPayload)
     .select("id")
     .single()
 
@@ -37,6 +48,119 @@ export async function logWorkout(formData: FormData) {
 
   revalidatePath("/historico")
   redirect(`/historico/${log.id}`)
+}
+
+export async function startWorkout(workoutPlanId: string): Promise<string> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  // Reuse existing in_progress session for this plan (handles page refreshes)
+  const { data: existing } = await supabase
+    .from("workout_logs")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("workout_plan_id", workoutPlanId)
+    .eq("status", "in_progress")
+    .order("executed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) return existing.id
+
+  const { data: log, error } = await supabase
+    .from("workout_logs")
+    .insert({ user_id: user.id, workout_plan_id: workoutPlanId, status: "in_progress" })
+    .select("id")
+    .single()
+
+  if (error) throw new Error(error.message)
+  return log.id
+}
+
+export async function completeWorkout(logId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const notes = (formData.get("notes") as string) || null
+  const exerciseIds = (formData.get("exercise_ids") as string).split(",").filter(Boolean)
+
+  const executedAtRaw = formData.get("executed_at") as string | null
+  const executedAt = executedAtRaw ? new Date(executedAtRaw) : null
+  const updatePayload: Record<string, unknown> = { status: "completed", notes }
+  if (executedAt && !isNaN(executedAt.getTime())) {
+    updatePayload.executed_at = executedAt.toISOString()
+  }
+
+  const { error: logError } = await supabase
+    .from("workout_logs")
+    .update(updatePayload)
+    .eq("id", logId)
+    .eq("user_id", user.id)
+
+  if (logError) throw new Error(logError.message)
+
+  // Replace exercise logs (safe for retries)
+  await supabase.from("exercise_logs").delete().eq("workout_log_id", logId)
+
+  const exerciseLogs = exerciseIds.map((exId) => ({
+    workout_log_id: logId,
+    exercise_id: exId,
+    sets_done: Number(formData.get(`ex_${exId}_sets`)) || null,
+    reps_done: (formData.get(`ex_${exId}_reps`) as string) || null,
+    weight_used: Number(formData.get(`ex_${exId}_weight`)) || null,
+    notes: (formData.get(`ex_${exId}_notes`) as string) || null,
+  }))
+
+  if (exerciseLogs.length > 0) {
+    const { error } = await supabase.from("exercise_logs").insert(exerciseLogs)
+    if (error) throw new Error(error.message)
+  }
+
+  revalidatePath("/historico")
+  redirect(`/historico/${logId}`)
+}
+
+export async function updateWorkoutLogDate(logId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const executedAt = formData.get("executed_at") as string
+  if (!executedAt) return
+
+  // Convert local datetime-local value to UTC ISO
+  const date = new Date(executedAt)
+  if (isNaN(date.getTime())) return
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .update({ executed_at: date.toISOString() })
+    .eq("id", logId)
+    .eq("user_id", user.id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/historico/${logId}`)
+  revalidatePath("/historico")
+}
+
+export async function deleteWorkoutLog(logId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .delete()
+    .eq("id", logId)
+    .eq("user_id", user.id)  // only own logs
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/historico")
+  redirect("/historico")
 }
 
 export async function addAdminFeedback(logId: string, formData: FormData) {
