@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
-import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle } from "lucide-react"
+import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle, CalendarDays } from "lucide-react"
 
 type Exercise = {
   id: string
@@ -91,9 +91,16 @@ function defaultExStates(exercises: Exercise[]): Record<string, ExState> {
   )
 }
 
+function todayLocal() {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function WorkoutExecutionForm({ exercises, logId }: Props) {
   const [isPending, startTransition] = useTransition()
   const [notes, setNotes] = useState("")
+  const [workoutDate, setWorkoutDate] = useState(todayLocal)
   const [now, setNow] = useState(Date.now())
 
   const [exStates, setExStates] = useState<Record<string, ExState>>(() =>
@@ -190,6 +197,7 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
     try { localStorage.removeItem(STORAGE_KEY(logId)) } catch {}
     const fd = new FormData()
     fd.append("notes", notes)
+    if (workoutDate) fd.append("executed_at", workoutDate)
     // Only log exercises that were actually executed
     const doneIds = exercises
       .filter((ex) => exStates[ex.id].setsDone > 0 || exStates[ex.id].completed)
@@ -223,6 +231,22 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Data do treino */}
+      <GymCard className="p-4 space-y-2">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          Data do treino
+        </label>
+        <input
+          type="datetime-local"
+          name="workout_date"
+          value={workoutDate}
+          onChange={(e) => setWorkoutDate(e.target.value)}
+          max={todayLocal()}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </GymCard>
+
       {/* Progress bar */}
       {exercises.length > 0 && (
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
