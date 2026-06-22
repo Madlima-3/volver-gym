@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminFeedbackForm } from "@/components/workout/AdminFeedbackForm"
+import { WorkoutLogActions } from "@/components/workout/WorkoutLogActions"
 import { ArrowLeft, MessageSquare, TrendingUp, Clock, Play } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
@@ -260,6 +261,11 @@ export default async function WorkoutLogPage({ params }: Props) {
       {/* Feedback do admin (edição) */}
       {isAdmin && !inProgress && (
         <AdminFeedbackForm logId={id} currentFeedback={log.admin_feedback ?? null} />
+      )}
+
+      {/* Actions: edit date, delete */}
+      {!inProgress && log.user_id === user.id && (
+        <WorkoutLogActions logId={id} executedAt={log.executed_at} />
       )}
 
       {/* Link para a ficha */}

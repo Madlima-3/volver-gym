@@ -40,9 +40,16 @@ export async function completeWorkout(logId: string, formData: FormData) {
   const notes = (formData.get("notes") as string) || null
   const exerciseIds = (formData.get("exercise_ids") as string).split(",").filter(Boolean)
 
+  const executedAtRaw = formData.get("executed_at") as string | null
+  const executedAt = executedAtRaw ? new Date(executedAtRaw) : null
+  const updatePayload: Record<string, unknown> = { status: "completed", notes }
+  if (executedAt && !isNaN(executedAt.getTime())) {
+    updatePayload.executed_at = executedAt.toISOString()
+  }
+
   const { error: logError } = await supabase
     .from("workout_logs")
-    .update({ status: "completed", notes })
+    .update(updatePayload)
     .eq("id", logId)
     .eq("user_id", user.id)
 
@@ -67,6 +74,46 @@ export async function completeWorkout(logId: string, formData: FormData) {
 
   revalidatePath("/historico")
   redirect(`/historico/${logId}`)
+}
+
+export async function updateWorkoutLogDate(logId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const executedAt = formData.get("executed_at") as string
+  if (!executedAt) return
+
+  const date = new Date(executedAt)
+  if (isNaN(date.getTime())) return
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .update({ executed_at: date.toISOString() })
+    .eq("id", logId)
+    .eq("user_id", user.id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath(`/historico/${logId}`)
+  revalidatePath("/historico")
+}
+
+export async function deleteWorkoutLog(logId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .delete()
+    .eq("id", logId)
+    .eq("user_id", user.id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/historico")
+  redirect("/historico")
 }
 
 export async function addAdminFeedback(logId: string, formData: FormData) {
