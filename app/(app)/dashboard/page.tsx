@@ -4,7 +4,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GymCard } from "@/components/ui/GymCard"
-import { Dumbbell, Play, MessageSquare, TrendingUp, ClipboardList, Zap } from "lucide-react"
+import { Dumbbell, Play, MessageSquare, TrendingUp, ClipboardList, Zap, Clock } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
 
   const { data: recentLogs } = await supabase
     .from("workout_logs")
-    .select("id, executed_at, admin_feedback, workout_plans(name), exercise_logs(count)")
+    .select("id, executed_at, admin_feedback, status, workout_plans(name), exercise_logs(count)")
     .eq("user_id", user.id)
     .order("executed_at", { ascending: false })
     .limit(3)
@@ -111,18 +112,30 @@ export default async function DashboardPage() {
           </h2>
           <div className="space-y-2">
             {recentLogs.map((log) => {
+              const inProgress = (log as any).status === "in_progress"
               const planName = (log.workout_plans as unknown as { name: string } | null)?.name
               const exCount = (log.exercise_logs as unknown as { count: number }[])[0]?.count ?? 0
               const date = new Date(log.executed_at)
               return (
                 <Link key={log.id} href={`/historico/${log.id}`}>
-                  <GymCard className="px-4 py-3 hover:border-border/60 transition-colors cursor-pointer">
+                  <GymCard
+                    className={cn(
+                      "px-4 py-3 transition-colors cursor-pointer",
+                      inProgress
+                        ? "border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60"
+                        : "hover:border-border/60"
+                    )}
+                  >
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{planName ?? "Treino"}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium truncate">{planName ?? "Treino"}</p>
+                          {inProgress && <Clock className="h-3 w-3 text-amber-500 shrink-0" />}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                          {" · "}{exCount} exercício{exCount !== 1 ? "s" : ""}
+                          {inProgress
+                            ? "Em andamento"
+                            : `${date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · ${exCount} exercício${exCount !== 1 ? "s" : ""}`}
                         </p>
                       </div>
                       {log.admin_feedback && (

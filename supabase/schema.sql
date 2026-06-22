@@ -56,8 +56,14 @@ create table public.workout_logs (
   workout_plan_id  uuid references public.workout_plans(id) not null,
   executed_at      timestamptz default now(),
   notes            text,
-  admin_feedback   text
+  admin_feedback   text,
+  status           text not null default 'completed' check (status in ('in_progress', 'completed'))
 );
+
+-- Migração (para banco existente — rodar no SQL Editor):
+-- ALTER TABLE public.workout_logs
+--   ADD COLUMN status text NOT NULL DEFAULT 'completed'
+--   CHECK (status IN ('in_progress', 'completed'));
 
 -- ============================================================
 -- Tabela: exercise_logs (execução por exercício)

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminFeedbackForm } from "@/components/workout/AdminFeedbackForm"
-import { ArrowLeft, MessageSquare, TrendingUp } from "lucide-react"
+import { ArrowLeft, MessageSquare, TrendingUp, Clock } from "lucide-react"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -25,7 +25,7 @@ export default async function WorkoutLogPage({ params }: Props) {
   const { data: log } = await supabase
     .from("workout_logs")
     .select(`
-      id, executed_at, notes, admin_feedback, user_id,
+      id, executed_at, notes, admin_feedback, status, user_id,
       workout_plans(id, name),
       exercise_logs(
         id, sets_done, reps_done, weight_used, notes,
@@ -62,7 +62,15 @@ export default async function WorkoutLogPage({ params }: Props) {
           </Link>
         </Button>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">{plan?.name ?? "Treino"}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight">{plan?.name ?? "Treino"}</h1>
+            {(log as any).status === "in_progress" && (
+              <span className="flex items-center gap-1 text-xs font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
+                <Clock className="h-3 w-3" />
+                Em andamento
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground text-sm">
             {date.toLocaleDateString("pt-BR", {
               weekday: "long",

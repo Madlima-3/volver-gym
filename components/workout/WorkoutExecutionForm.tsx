@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useTransition } from "react"
-import { logWorkout } from "@/lib/actions/workout-logs"
+import { completeWorkout } from "@/lib/actions/workout-logs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,9 +68,10 @@ type Props = {
   workoutPlanId: string
   planName: string
   exercises: Exercise[]
+  logId: string
 }
 
-export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
+export function WorkoutExecutionForm({ exercises, logId }: Props) {
   const [isPending, startTransition] = useTransition()
   const [notes, setNotes] = useState("")
   const [now, setNow] = useState(Date.now())
@@ -147,7 +148,6 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
 
   function handleSubmit() {
     const fd = new FormData()
-    fd.append("workout_plan_id", workoutPlanId)
     fd.append("notes", notes)
     fd.append("exercise_ids", exercises.map((e) => e.id).join(","))
     exercises.forEach((ex) => {
@@ -157,7 +157,7 @@ export function WorkoutExecutionForm({ workoutPlanId, exercises }: Props) {
       fd.append(`ex_${ex.id}_weight`, s.weight)
       fd.append(`ex_${ex.id}_notes`, s.exNotes)
     })
-    startTransition(() => logWorkout(fd))
+    startTransition(() => completeWorkout(logId, fd))
   }
 
   const activeCount = exercises.filter((ex) => exStates[ex.id].completed).length
