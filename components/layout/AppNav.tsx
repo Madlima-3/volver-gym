@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Home, Dumbbell, ClipboardList, ShieldCheck, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { PWAInstallButton } from "@/components/PWAInstallButton"
 
 const BASE_LINKS = [
   { href: "/dashboard", icon: Home, label: "Início" },
@@ -78,7 +77,6 @@ export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           )
         })}
-        <PWAInstallButton compact />
         <button
           onClick={handleLogout}
           className="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl text-muted-foreground transition-colors active:text-destructive"
