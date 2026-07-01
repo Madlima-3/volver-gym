@@ -63,6 +63,21 @@ export async function deleteUser(userId: string) {
   }
 
   const adminClient = createAdminClient()
+
+  // workout_logs.user_id has no CASCADE, must delete manually before auth delete
+  const { error: logsError } = await adminClient
+    .from("workout_logs")
+    .delete()
+    .eq("user_id", userId)
+
+  if (logsError) return { error: "Erro ao remover histórico de treinos." }
+
+  // Nullify assigned_to (no CASCADE on this FK either)
+  await adminClient.from("workout_plans").update({ assigned_to: null }).eq("assigned_to", userId)
+
+  // created_by is NOT NULL — reassign to current admin
+  await adminClient.from("workout_plans").update({ created_by: adminId }).eq("created_by", userId)
+
   const { error } = await adminClient.auth.admin.deleteUser(userId)
 
   if (error) return { error: error.message }

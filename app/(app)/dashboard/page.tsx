@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GymCard } from "@/components/ui/GymCard"
-import { Dumbbell, Play, MessageSquare, TrendingUp, ClipboardList, Zap, Clock } from "lucide-react"
+import { Dumbbell, Play, MessageSquare, TrendingUp, ClipboardList, Zap, Clock, Flame } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default async function DashboardPage() {
@@ -28,6 +28,36 @@ export default async function DashboardPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(3)
+
+  // Find next recommended plan: least recently executed (or never done)
+  const planIds = activePlans?.map((p) => p.id) ?? []
+  const { data: planLogs } = planIds.length > 0
+    ? await supabase
+        .from("workout_logs")
+        .select("workout_plan_id, executed_at")
+        .eq("user_id", user.id)
+        .in("workout_plan_id", planIds)
+        .order("executed_at", { ascending: false })
+    : { data: [] }
+
+  const lastExecMap = new Map<string, Date>()
+  for (const log of planLogs ?? []) {
+    if (!lastExecMap.has(log.workout_plan_id)) {
+      lastExecMap.set(log.workout_plan_id, new Date(log.executed_at))
+    }
+  }
+
+  let nextPlanId: string | null = null
+  let oldestDate: Date | null = null
+  for (const plan of activePlans ?? []) {
+    const lastExec = lastExecMap.get(plan.id)
+    if (!lastExec) { nextPlanId = plan.id; break }
+    if (oldestDate === null || lastExec < oldestDate) { oldestDate = lastExec; nextPlanId = plan.id }
+  }
+
+  const sortedPlans = activePlans
+    ? [...activePlans].sort((a, b) => (a.id === nextPlanId ? -1 : b.id === nextPlanId ? 1 : 0))
+    : []
 
   const { data: recentLogs } = await supabase
     .from("workout_logs")
@@ -67,22 +97,31 @@ export default async function DashboardPage() {
       </div>
 
       {/* Active plans */}
-      {activePlans && activePlans.length > 0 && (
+      {sortedPlans.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {isAdmin ? "Suas fichas" : "Fichas ativas"}
           </h2>
           <div className="space-y-3">
-            {activePlans.map((plan, i) => {
+            {sortedPlans.map((plan) => {
               const exCount = (plan.exercises as unknown as { count: number }[])[0]?.count ?? 0
+              const isNext = plan.id === nextPlanId
               return (
-                <GymCard key={plan.id} highlight={i === 0} className="p-4">
+                <GymCard key={plan.id} highlight={isNext} className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15">
                       <Dumbbell className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{plan.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold truncate">{plan.name}</p>
+                        {isNext && (
+                          <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 border-primary/50 text-primary">
+                            <Flame className="h-2.5 w-2.5 mr-1" />
+                            Próximo
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {exCount} exercício{exCount !== 1 ? "s" : ""}
                       </p>
@@ -154,7 +193,7 @@ export default async function DashboardPage() {
       )}
 
       {/* Empty state */}
-      {!activePlans?.length && !recentLogs?.length && (
+      {!sortedPlans.length && !recentLogs?.length && (
         <div className="grid gap-4 sm:grid-cols-3">
           {[
             {
