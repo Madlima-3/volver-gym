@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
-import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle, CalendarDays } from "lucide-react"
+import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle, CalendarDays, History } from "lucide-react"
 
 type Exercise = {
   id: string
@@ -20,6 +20,17 @@ type Exercise = {
   order_index: number
   lastWeight?: number | null
   lastReps?: string | null
+  lastSets?: number | null
+  lastDate?: string | null
+}
+
+function relativeDate(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (days === 0) return "hoje"
+  if (days === 1) return "ontem"
+  if (days < 7) return `há ${days} dias`
+  if (days < 30) return `há ${Math.floor(days / 7)} sem.`
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
 }
 
 type ExState = {
@@ -292,11 +303,6 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
                       <span className="text-xs text-muted-foreground">{ex.suggested_weight} kg sugerido</span>
                     )}
                   </div>
-                  {ex.lastWeight && (
-                    <p className="text-xs text-primary mt-0.5">
-                      Último: {ex.lastWeight} kg{ex.lastReps ? ` · ${ex.lastReps} reps` : ""}
-                    </p>
-                  )}
                 </div>
                 <button
                   type="button"
@@ -437,6 +443,23 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
                       </Button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Last session reference */}
+              {ex.lastWeight != null && (
+                <div className="flex items-center gap-2 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2">
+                  <History className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground leading-none mb-0.5">
+                      Última sessão{ex.lastDate ? ` · ${relativeDate(ex.lastDate)}` : ""}
+                    </p>
+                    <p className="text-sm font-semibold text-primary leading-none">
+                      {ex.lastWeight} kg
+                      {ex.lastSets != null && ` · ${ex.lastSets}×`}
+                      {ex.lastReps ? `${ex.lastReps}` : ""}
+                    </p>
+                  </div>
                 </div>
               )}
 

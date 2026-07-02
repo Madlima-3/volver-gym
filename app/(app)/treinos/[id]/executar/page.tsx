@@ -42,12 +42,12 @@ export default async function ExecutarTreinoPage({ params }: Props) {
   }[]).sort((a, b) => a.order_index - b.order_index)
 
   // Busca o último log de cada exercício para sugerir progressão
-  const lastLogs: Record<string, { weight_used: number | null; reps_done: string | null }> = {}
+  const lastLogs: Record<string, { weight_used: number | null; reps_done: string | null; sets_done: number | null; executed_at: string | null }> = {}
 
   if (exercises.length > 0) {
     const { data: recentLogs } = await supabase
       .from("exercise_logs")
-      .select("exercise_id, weight_used, reps_done, workout_log:workout_logs!inner(user_id, executed_at)")
+      .select("exercise_id, weight_used, reps_done, sets_done, workout_log:workout_logs!inner(user_id, executed_at)")
       .in("exercise_id", exercises.map((e) => e.id))
       .eq("workout_log.user_id", isAdmin ? (plan.assigned_to ?? user.id) : user.id)
       .order("workout_log(executed_at)", { ascending: false })
@@ -57,6 +57,8 @@ export default async function ExecutarTreinoPage({ params }: Props) {
         lastLogs[log.exercise_id] = {
           weight_used: log.weight_used,
           reps_done: log.reps_done,
+          sets_done: log.sets_done,
+          executed_at: (log.workout_log as unknown as { executed_at: string })?.executed_at ?? null,
         }
       }
     })
@@ -66,6 +68,8 @@ export default async function ExecutarTreinoPage({ params }: Props) {
     ...ex,
     lastWeight: lastLogs[ex.id]?.weight_used ?? null,
     lastReps: lastLogs[ex.id]?.reps_done ?? null,
+    lastSets: lastLogs[ex.id]?.sets_done ?? null,
+    lastDate: lastLogs[ex.id]?.executed_at ?? null,
   }))
 
   const logId = await startWorkout(id)
