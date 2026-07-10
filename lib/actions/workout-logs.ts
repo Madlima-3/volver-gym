@@ -104,13 +104,17 @@ export async function deleteWorkoutLog(logId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("workout_logs")
     .delete()
     .eq("id", logId)
-    .eq("user_id", user.id)
+    .eq("user_id", user.id)  // only own logs
+    .select("id")
 
   if (error) throw new Error(error.message)
+  if (!data || data.length === 0) {
+    throw new Error("Não foi possível excluir o registro (permissão negada ou registro não encontrado).")
+  }
 
   revalidatePath("/historico")
   redirect("/historico")

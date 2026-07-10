@@ -183,6 +183,14 @@ create policy "Admin dá feedback nos logs"
   on public.workout_logs for update
   using (public.is_admin());
 
+create policy "Usuário deleta seus próprios logs"
+  on public.workout_logs for delete
+  using (user_id = auth.uid());
+
+create policy "Admin deleta logs"
+  on public.workout_logs for delete
+  using (public.is_admin());
+
 -- ---- Políticas: exercise_logs ----
 
 create policy "Usuário vê seus exercise_logs"
@@ -205,6 +213,19 @@ create policy "Usuário registra seus exercise_logs"
 
 create policy "Admin vê todos os exercise_logs"
   on public.exercise_logs for select
+  using (public.is_admin());
+
+create policy "Usuário deleta seus exercise_logs"
+  on public.exercise_logs for delete
+  using (
+    exists (
+      select 1 from public.workout_logs wl
+      where wl.id = workout_log_id and wl.user_id = auth.uid()
+    )
+  );
+
+create policy "Admin deleta exercise_logs"
+  on public.exercise_logs for delete
   using (public.is_admin());
 
 -- ============================================================

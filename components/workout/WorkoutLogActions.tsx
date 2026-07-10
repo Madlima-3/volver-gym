@@ -16,6 +16,7 @@ export function WorkoutLogActions({ logId, executedAt }: Props) {
   const [isPending, startTransition] = useTransition()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editingDate, setEditingDate] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const localDate = new Date(executedAt)
   const pad = (n: number) => String(n).padStart(2, "0")
@@ -24,7 +25,17 @@ export function WorkoutLogActions({ logId, executedAt }: Props) {
   const [dateValue, setDateValue] = useState(defaultDateValue)
 
   function handleDelete() {
-    startTransition(() => deleteWorkoutLog(logId))
+    setDeleteError(null)
+    startTransition(async () => {
+      try {
+        await deleteWorkoutLog(logId)
+      } catch (err) {
+        // redirect() throws a special error on success; rethrow so Next.js can handle it
+        const digest = (err as { digest?: string })?.digest
+        if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) throw err
+        setDeleteError(err instanceof Error ? err.message : "Erro ao excluir registro.")
+      }
+    })
   }
 
   function handleSaveDate() {
@@ -70,6 +81,9 @@ export function WorkoutLogActions({ logId, executedAt }: Props) {
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
           <p className="text-sm font-medium text-destructive">Excluir este registro?</p>
           <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita.</p>
+          {deleteError && (
+            <p className="text-xs font-medium text-destructive">{deleteError}</p>
+          )}
           <div className="flex gap-2">
             <Button size="sm" variant="destructive" onClick={handleDelete} disabled={isPending} className="flex-1">
               {isPending ? "Excluindo…" : "Sim, excluir"}
