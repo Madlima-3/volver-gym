@@ -40,8 +40,7 @@ type ExState = {
   weight: string
   exNotes: string
   timerEnd: number | null   // epoch ms when timer expires
-  timerDuration: number     // seconds
-  timerOpen: boolean        // picker visible
+  timerDuration: number     // seconds (snapshot of the default used when started)
 }
 
 const PRESETS = [
@@ -96,7 +95,6 @@ function defaultExStates(exercises: Exercise[]): Record<string, ExState> {
         exNotes: "",
         timerEnd: null,
         timerDuration: 60,
-        timerOpen: false,
       } satisfies ExState,
     ])
   )
@@ -113,6 +111,7 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
   const [notes, setNotes] = useState("")
   const [workoutDate, setWorkoutDate] = useState(todayLocal)
   const [now, setNow] = useState(Date.now())
+  const [restDuration, setRestDuration] = useState(60)
 
   const [exStates, setExStates] = useState<Record<string, ExState>>(() =>
     defaultExStates(exercises)
@@ -126,14 +125,22 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY(logId))
       if (saved) {
-        const parsed = JSON.parse(saved) as Record<string, ExState>
+        const parsed = JSON.parse(saved)
+        // Support both the old format (bare exStates object) and the new
+        // { restDuration, exStates } format.
+        const savedExStates: Record<string, ExState> =
+          parsed && typeof parsed === "object" && "exStates" in parsed ? parsed.exStates : parsed
+        const savedRestDuration: number | undefined =
+          parsed && typeof parsed === "object" && "restDuration" in parsed ? parsed.restDuration : undefined
+
+        if (savedRestDuration) setRestDuration(savedRestDuration)
         setExStates((prev) =>
           Object.fromEntries(
             exercises.map((ex) => [
               ex.id,
               // Reset timer state (would be stale after returning)
-              parsed[ex.id]
-                ? { ...parsed[ex.id], timerEnd: null, timerOpen: false }
+              savedExStates?.[ex.id]
+                ? { ...savedExStates[ex.id], timerEnd: null }
                 : prev[ex.id],
             ])
           )
@@ -145,9 +152,9 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
   // Auto-save state on every change
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY(logId), JSON.stringify(exStates))
+      localStorage.setItem(STORAGE_KEY(logId), JSON.stringify({ restDuration, exStates }))
     } catch {}
-  }, [exStates, logId])
+  }, [exStates, restDuration, logId])
 
   // Keep a ref so the interval always reads current state
   const exStatesRef = useRef(exStates)
@@ -171,7 +178,6 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
             processedTimers.current.add(key)
             updates[exId] = {
               timerEnd: null,
-              timerOpen: false,
               setsDone: state.setsDone + 1,
             }
             anyCompleted = true
@@ -256,6 +262,43 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
           max={todayLocal()}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
+      </GymCard>
+
+      {/* Tempo de descanso padrão */}
+      <GymCard className="p-4 space-y-2">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <Timer className="h-4 w-4 text-muted-foreground" />
+          Tempo de descanso padrão
+        </label>
+        <div className="flex gap-2 flex-wrap items-center">
+          {PRESETS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => setRestDuration(p.value)}
+              className={cn(
+                "px-3 h-8 rounded-lg text-xs font-medium transition-colors",
+                restDuration === p.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          <Input
+            type="number"
+            min="5"
+            max="600"
+            className="h-8 w-16 text-xs text-center"
+            placeholder="seg"
+            value={PRESETS.some((p) => p.value === restDuration) ? "" : restDuration}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (v >= 5) setRestDuration(v)
+            }}
+          />
+        </div>
       </GymCard>
 
       {/* Progress bar */}
@@ -360,89 +403,41 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
                 {!isRunning && (
                   <button
                     type="button"
-                    onClick={() => update(ex.id, { timerOpen: !s.timerOpen })}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-lg px-3 h-9 text-xs font-medium transition-colors shrink-0",
-                      s.timerOpen
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "border border-border text-muted-foreground hover:bg-secondary"
-                    )}
+                    onClick={() =>
+                      update(ex.id, {
+                        timerEnd: Date.now() + restDuration * 1000,
+                        timerDuration: restDuration,
+                      })
+                    }
+                    className="flex items-center gap-1.5 rounded-lg px-3 h-9 text-xs font-medium transition-colors shrink-0 border border-border text-muted-foreground hover:bg-secondary"
                   >
                     <Timer className="h-3.5 w-3.5" />
-                    Descansar
+                    Descansar {fmt(restDuration * 1000)}
                   </button>
                 )}
               </div>
 
               {/* Timer panel */}
-              {(s.timerOpen || isRunning) && (
-                <div className="rounded-xl bg-secondary/60 p-3 space-y-3">
-                  {isRunning ? (
-                    <div className="space-y-2">
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-none rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-4xl font-bold tabular-nums text-primary tracking-tight">
-                          {fmt(remaining)}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => update(ex.id, { timerEnd: null })}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" /> Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Tempo de descanso</p>
-                      <div className="flex gap-2 flex-wrap items-center">
-                        {PRESETS.map((p) => (
-                          <button
-                            key={p.value}
-                            type="button"
-                            onClick={() => update(ex.id, { timerDuration: p.value })}
-                            className={cn(
-                              "px-3 h-8 rounded-lg text-xs font-medium transition-colors",
-                              s.timerDuration === p.value
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground hover:bg-muted/70"
-                            )}
-                          >
-                            {p.label}
-                          </button>
-                        ))}
-                        <Input
-                          type="number"
-                          min="5"
-                          max="600"
-                          className="h-8 w-16 text-xs text-center"
-                          placeholder="seg"
-                          value={PRESETS.some((p) => p.value === s.timerDuration) ? "" : s.timerDuration}
-                          onChange={(e) => {
-                            const v = Number(e.target.value)
-                            if (v >= 5) update(ex.id, { timerDuration: v })
-                          }}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                          update(ex.id, { timerEnd: Date.now() + s.timerDuration * 1000 })
-                        }
-                      >
-                        <Timer className="h-3.5 w-3.5 mr-1.5" />
-                        Iniciar descanso → +1 série ao final
-                      </Button>
-                    </div>
-                  )}
+              {isRunning && (
+                <div className="rounded-xl bg-secondary/60 p-3 space-y-2">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-none rounded-full"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-4xl font-bold tabular-nums text-primary tracking-tight">
+                      {fmt(remaining)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => update(ex.id, { timerEnd: null })}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" /> Cancelar
+                    </button>
+                  </div>
                 </div>
               )}
 
