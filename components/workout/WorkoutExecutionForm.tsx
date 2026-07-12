@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GymCard } from "@/components/ui/GymCard"
 import { cn } from "@/lib/utils"
-import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle, CalendarDays, History } from "lucide-react"
+import { Dumbbell, Timer, Plus, Minus, X, CheckCircle2, AlertTriangle, CalendarDays, History, Bell } from "lucide-react"
 
 type Exercise = {
   id: string
@@ -112,6 +112,24 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
   const [workoutDate, setWorkoutDate] = useState(todayLocal)
   const [now, setNow] = useState(Date.now())
   const [restDuration, setRestDuration] = useState(60)
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("unsupported")
+  const notifPermissionRef = useRef(notifPermission)
+
+  useEffect(() => {
+    notifPermissionRef.current = notifPermission
+  }, [notifPermission])
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifPermission(Notification.permission)
+    }
+  }, [])
+
+  async function enableNotifications() {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    const perm = await Notification.requestPermission()
+    setNotifPermission(perm)
+  }
 
   const [exStates, setExStates] = useState<Record<string, ExState>>(() =>
     defaultExStates(exercises)
@@ -188,6 +206,18 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
       if (anyCompleted) {
         playBeep()
         try { navigator.vibrate([300, 100, 300]) } catch {}
+        if (document.hidden && notifPermissionRef.current === "granted") {
+          const names = Object.keys(updates)
+            .map((exId) => exercises.find((e) => e.id === exId)?.name)
+            .filter(Boolean)
+          try {
+            new Notification("Descanso concluído 💪", {
+              body: names.length ? `Hora de voltar: ${names.join(", ")}` : "Hora de continuar o treino",
+              icon: "/icon-192.png",
+              tag: "rest-timer",
+            })
+          } catch {}
+        }
         setExStates((prev) => {
           const next = { ...prev }
           Object.entries(updates).forEach(([exId, patch]) => {
@@ -299,6 +329,29 @@ export function WorkoutExecutionForm({ exercises, logId }: Props) {
             }}
           />
         </div>
+        {notifPermission !== "unsupported" && (
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              {notifPermission === "granted"
+                ? "Notificações ativas — você é avisado mesmo trocando de app"
+                : notifPermission === "denied"
+                  ? "Notificações bloqueadas. Ative nas permissões do navegador para ser avisado fora do app."
+                  : "Ative para ser avisado quando o descanso acabar, mesmo em outro app"}
+            </p>
+            {notifPermission === "default" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={enableNotifications}
+                className="h-7 text-xs shrink-0 px-2"
+              >
+                <Bell className="h-3 w-3 mr-1" />
+                Ativar
+              </Button>
+            )}
+          </div>
+        )}
       </GymCard>
 
       {/* Progress bar */}
